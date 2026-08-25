@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VFX Quiz System — Visual Effects Showcase</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   0. RESET & BASE
+   ═══════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --neon-green:#39ff14;--neon-red:#ff0a3c;--neon-blue:#00f0ff;
+  --neon-purple:#b400ff;--neon-gold:#ffd700;--neon-pink:#ff6ec7;
+  --bg-dark:#0a0a1a;--bg-card:#12122a;--text:#e8e8f0;
+}
+html,body{
+  min-height:100vh;overflow-x:hidden;
+  background:var(--bg-dark);color:var(--text);
+  font-family:'Segoe UI',system-ui,sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════════
+   5. ANIMATED BACKGROUND — gradient + particle field
+   ═══════════════════════════════════════════════════════ */
+#bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.bg-gradient{
+  position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;
+  background:linear-gradient(-45deg,#0a0a1a,#1a0a2e,#0a1a2e,#0a0a1a);
+  background-size:400% 400%;
+  animation:gradientShift 12s ease infinite;
+}
+@keyframes gradientShift{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+
+/* ═══════════════════════════════════════════════════════
+   3. SCREEN FLASH OVERLAY
+   ═══════════════════════════════════════════════════════ */
+#flash-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:1000;opacity:0;
+  transition:opacity 0.05s ease;
+}
+#flash-overlay.flash-green{background:rgba(57,255,20,0.35);animation:screenFlash 0.5s ease-out}
+#flash-overlay.flash-red{background:rgba(255,10,60,0.35);animation:screenFlash 0.5s ease-out}
+@keyframes screenFlash{
+  0%{opacity:1}100%{opacity:0}
+}
+
+/* ═══════════════════════════════════════════════════════
+   8. NEON GLOW EFFECTS
+   ═══════════════════════════════════════════════════════ */
+.neon-border{
+  border:2px solid var(--neon-blue);
+  box-shadow:0 0 5px var(--neon-blue),0 0 15px var(--neon-blue),0 0 30px var(--neon-blue);
+  animation:neonPulse 2s ease-in-out infinite;
+}
+.neon-text{
+  color:var(--neon-blue);
+  text-shadow:0 0 5px var(--neon-blue),0 0 15px var(--neon-blue),0 0 30px var(--neon-blue);
+  animation:neonPulse 2s ease-in-out infinite;
+}
+@keyframes neonPulse{
+  0%,100%{opacity:1;filter:brightness(1)}
+  50%{opacity:.75;filter:brightness(1.5)}
+}
+.neon-gold{
+  color:var(--neon-gold);
+  text-shadow:0 0 5px var(--neon-gold),0 0 20px var(--neon-gold),0 0 40px var(--neon-gold);
+  animation:neonPulse 1.8s ease-in-out infinite;
+}
+.neon-green-glow{
+  color:var(--neon-green);
+  text-shadow:0 0 5px var(--neon-green),0 0 20px var(--neon-green),0 0 40px var(--neon-green);
+  animation:neonPulse 2s ease-in-out infinite;
+}
+.neon-red-glow{
+  color:var(--neon-red);
+  text-shadow:0 0 5px var(--neon-red),0 0 20px var(--neon-red),0 0 40px var(--neon-red);
+  animation:neonPulse 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════
+   9. SHAKE ANIMATION
+   ═══════════════════════════════════════════════════════ */
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  10%,30%,50%,70%,90%{transform:translateX(-8px)}
+  20%,40%,60%,80%{transform:translateX(8px)}
+}
+.shake{animation:shake 0.5s ease-in-out}
+
+/* ═══════════════════════════════════════════════════════
+   10. SMOOTH PAGE TRANSITIONS
+   ═══════════════════════════════════════════════════════ */
+.page{
+  display:none;opacity:0;
+  transition:opacity 0.5s ease,transform 0.5s ease;
+  transform:translateY(20px);
+}
+.page.active{display:block}
+.page.visible{opacity:1;transform:translateY(0)}
+.page.exit{opacity:0;transform:translateY(-20px)}
+
+/* ═══════════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════════ */
+#app{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:20px}
+header{text-align:center;padding:30px 0 20px}
+header h1{font-size:2.4rem;margin-bottom:8px;letter-spacing:1px}
+header p{opacity:.7;font-size:.95rem}
+
+/* Quiz card */
+.quiz-card{
+  background:var(--bg-card);border-radius:16px;padding:30px;
+  margin:20px 0;position:relative;overflow:hidden;
+  transition:transform 0.3s ease;
+}
+.quiz-card:hover{transform:translateY(-2px)}
+.quiz-card h2{margin-bottom:16px;font-size:1.3rem}
+
+/* Options grid */
+.options{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.option-btn{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);
+  color:var(--text);padding:14px 18px;border-radius:10px;cursor:pointer;
+  font-size:.95rem;transition:all 0.25s ease;position:relative;overflow:hidden;
+}
+.option-btn:hover{background:rgba(255,255,255,.12);border-color:var(--neon-blue);box-shadow:0 0 12px rgba(0,240,255,.3)}
+.option-btn.correct{
+  background:rgba(57,255,20,.2)!important;border-color:var(--neon-green)!important;
+  box-shadow:0 0 20px rgba(57,255,20,.4)!important;
+}
+.option-btn.wrong{
+  background:rgba(255,10,60,.2)!important;border-color:var(--neon-red)!important;
+  box-shadow:0 0 20px rgba(255,10,60,.4)!important;
+}
+.option-btn .flag{display:inline-block;width:28px;height:18px;border-radius:3px;margin-right:8px;vertical-align:middle;position:relative;overflow:hidden}
+
+/* ═══════════════════════════════════════════════════════
+   7. PROGRESS BAR — liquid fill
+   ═══════════════════════════════════════════════════════ */
+.progress-wrap{margin:16px 0}
+.progress-label{display:flex;justify-content:space-between;font-size:.8rem;opacity:.7;margin-bottom:6px}
+.progress-bar{
+  width:100%;height:18px;background:rgba(255,255,255,.08);border-radius:9px;
+  overflow:hidden;position:relative;
+}
+.progress-fill{
+  height:100%;border-radius:9px;position:relative;
+  background:linear-gradient(90deg,var(--neon-blue),var(--neon-purple),var(--neon-pink));
+  background-size:200% 100%;
+  animation:liquidFlow 2s linear infinite;
+  transition:width 0.6s cubic-bezier(.4,0,.2,1);
+}
+.progress-fill::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.3) 50%,transparent 100%);
+  background-size:50px 100%;animation:liquidWave 1.5s linear infinite;
+}
+@keyframes liquidFlow{0%{background-position:200% 0}100%{background-position:0 0}}
+@keyframes liquidWave{0%{background-position:50px 0}100%{background-position:-50px 0}}
+.progress-bubbles{
+  position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;
+}
+.progress-bubbles span{
+  position:absolute;bottom:-4px;width:6px;height:6px;border-radius:50%;
+  background:rgba(255,255,255,.4);animation:bubbleUp 1.5s ease-in infinite;
+}
+.progress-bubbles span:nth-child(1){left:20%;animation-delay:0s}
+.progress-bubbles span:nth-child(2){left:40%;animation-delay:.5s}
+.progress-bubbles span:nth-child(3){left:60%;animation-delay:1s}
+.progress-bubbles span:nth-child(4){left:80%;animation-delay:.3s}
+@keyframes bubbleUp{
+  0%{transform:translateY(0) scale(1);opacity:.6}
+  100%{transform:translateY(-30px) scale(.3);opacity:0}
+}
+
+/* Score display */
+.score-display{
+  text-align:center;font-size:3rem;font-weight:700;margin:10px 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   4. SCORE POPUP
+   ═══════════════════════════════════════════════════════ */
+.score-popup{
+  position:fixed;pointer-events:none;z-index:999;
+  font-size:1.8rem;font-weight:700;
+  animation:scoreFloat 1.2s ease-out forwards;
+}
+.score-popup.positive{color:var(--neon-green)}
+.score-popup.negative{color:var(--neon-red)}
+@keyframes scoreFloat{
+  0%{opacity:1;transform:translateY(0) scale(1)}
+  50%{opacity:1;transform:translateY(-40px) scale(1.2)}
+  100%{opacity:0;transform:translateY(-80px) scale(.8)}
+}
+
+/* ═══════════════════════════════════════════════════════
+   6. CSS-ONLY FLAG ANIMATIONS
+   ═══════════════════════════════════════════════════════ */
+.flag-fr{background:linear-gradient(90deg,#002395 33%,#fff 33%,#fff 66%,#ed2939 66%)}
+.flag-us{background:repeating-linear-gradient(0deg,#b22234 0px,#b22234 10px,#fff 10px,#fff 20px);position:relative}
+.flag-us::before{content:'';position:absolute;top:0;left:0;width:40%;height:50%;background:#3c3b6e}
+.flag-jp{background:#fff;position:relative}
+.flag-jp::after{content:'';position:absolute;top:50%;left:50%;width:12px;height:12px;background:#bc002d;border-radius:50%;transform:translate(-50%,-50%)}
+.flag-br{background:linear-gradient(180deg,#009739 0%,#009739 40%,#ffdf00 40%,#ffdf00 60%,#002788 60%,#002788 100%)}
+.flag-de{background:linear-gradient(180deg,#000 33%,#d4213e 33%,#d4213e 66%,#ffcc00 66%)}
+.flag-cn{background:#de2910;position:relative}
+.flag-cn::after{content:'★';position:absolute;top:2px;left:3px;color:#ffde00;font-size:10px}
+.flag-in{background:linear-gradient(180deg,#ff9933 33%,#fff 33%,#fff 66%,#138808 66%);position:relative}
+.flag-in::after{content:'';position:absolute;top:50%;left:50%;width:8px;height:8px;border:1.5px solid #000080;border-radius:50%;transform:translate(-50%,-50%)}
+.flag-au{background:#000088;position:relative}
+.flag-au::after{content:'★';position:absolute;top:50%;left:50%;color:#fff;font-size:10px;transform:translate(-50%,-50%)}
+.flag-za{background:#002390;position:relative}
+.flag-za::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#007a33 35%,#ffce00 35%,#ffce00 42%,#002390 42%,#002390 58%,#ffce00 58%,#ffce00 65%,#de3b32 65%)}
+.flag-ca{background:#fff;position:relative}
+.flag-ca::before{content:'';position:absolute;top:0;bottom:0;left:0;width:33%;background:#ff0000}
+.flag-ca::after{content:'';position:absolute;top:0;bottom:0;right:0;width:33%;background:#ff0000}
+
+/* VFX demo buttons */
+.vfx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:20px 0}
+.vfx-btn{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);
+  color:var(--text);padding:16px;border-radius:12px;cursor:pointer;
+  font-size:.9rem;transition:all 0.3s ease;text-align:left;
+}
+.vfx-btn:hover{background:rgba(255,255,255,.1);border-color:var(--neon-purple);box-shadow:0 0 15px rgba(180,0,255,.3)}
+.vfx-btn .emoji{font-size:1.3rem;margin-right:6px}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+.tab{
+  padding:10px 20px;border-radius:8px 8px 0 0;cursor:pointer;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  color:var(--text);transition:all 0.3s ease;font-size:.85rem;
+}
+.tab.active{background:rgba(0,240,255,.15);border-color:var(--neon-blue);color:var(--neon-blue)}
+
+/* Confetti canvas */
+#confetti-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999}
+
+/* Particle canvas for sparkles */
+#sparkle-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:998}
+
+/* Sound toggle */
+.sound-toggle{
+  position:fixed;top:16px;right:16px;z-index:1001;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:var(--text);padding:8px 14px;border-radius:8px;cursor:pointer;
+  font-size:.8rem;transition:all 0.3s ease;
+}
+.sound-toggle:hover{border-color:var(--neon-blue)}
+
+/* Responsive */
+@media(max-width:600px){
+  .options{grid-template-columns:1fr}
+  header h1{font-size:1.6rem}
+  .vfx-grid{grid-template-columns:1fr 1fr}
+}
+
+/* Confetti pieces (DOM fallback) */
+.confetti-piece{
+  position:fixed;width:10px;height:10px;z-index:999;pointer-events:none;
+  animation:confettiFall 3s ease-out forwards;
+}
+@keyframes confettiFall{
+  0%{opacity:1;transform:translateY(0) rotate(0deg) scale(1)}
+  100%{opacity:0;transform:translateY(100vh) rotate(720deg) scale(.3)}
+}
+
+/* Staggered entrance for quiz options */
+.option-btn{animation:optionStagger .4s ease-out both}
+.option-btn:nth-child(1){animation-delay:.05s}
+.option-btn:nth-child(2){animation-delay:.1s}
+.option-btn:nth-child(3){animation-delay:.15s}
+.option-btn:nth-child(4){animation-delay:.2s}
+@keyframes optionStagger{0%{opacity:0;transform:translateY(15px)}100%{opacity:1;transform:translateY(0)}}
+
+/* Correct/wrong result text */
+.result-text{
+  font-size:1.2rem;font-weight:600;margin:12px 0;min-height:30px;
+}
+.result-text.correct-text{color:var(--neon-green)}
+.result-text.wrong-text{color:var(--neon-red)}
+
+/* Combo counter */
+.combo{
+  position:fixed;top:20px;left:20px;z-index:100;
+  font-size:1.1rem;font-weight:700;opacity:0;
+  transition:opacity 0.3s ease;
+}
+.combo.visible{opacity:1}
+.combo-count{font-size:2rem;display:block}
+
+/* Quiz navigation */
+.quiz-nav{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.nav-btn{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  color:var(--text);padding:10px 24px;border-radius:8px;cursor:pointer;
+  font-size:.9rem;transition:all 0.3s ease;
+}
+.nav-btn:hover{background:rgba(0,240,255,.15);border-color:var(--neon-blue)}
+.nav-btn:disabled{opacity:.3;cursor:not-allowed}
+
+/* Question counter */
+.q-counter{font-size:.85rem;opacity:.6}
+
+/* Reset button */
+.reset-btn{
+  background:transparent;border:1px solid var(--neon-red);color:var(--neon-red);
+  padding:8px 20px;border-radius:6px;cursor:pointer;font-size:.85rem;
+  transition:all 0.3s ease;margin-top:12px;
+}
+.reset-btn:hover{background:rgba(255,10,60,.15);box-shadow:0 0 15px rgba(255,10,60,.3)}
+
+/* Footer */
+footer{text-align:center;padding:30px 0;opacity:.4;font-size:.8rem}
+</style>
+</head>
+<body>
+
+<div class="bg-gradient"></div>
+<canvas id="bg-canvas"></canvas>
+<canvas id="confetti-canvas"></canvas>
+<canvas id="sparkle-canvas"></canvas>
+<div id="flash-overlay"></div>
+
+<button class="sound-toggle" id="soundToggle" onclick="toggleSound()">🔊 Sound ON</button>
+
+<div class="combo" id="combo">
+  <span>COMBO</span>
+  <span class="combo-count" id="comboCount">0</span>
+</div>
+
+<div id="app">
+  <header>
+    <h1 class="neon-text">⚡ VFX Quiz System</h1>
+    <p>Visual Effects Showcase — Every effect demonstrated</p>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="quiz" onclick="switchTab('quiz')">🎯 Quiz</div>
+    <div class="tab" data-tab="vfx" onclick="switchTab('vfx')">✨ VFX Demo</div>
+    <div class="tab" data-tab="flags" onclick="switchTab('flags')">🏳️ Flags</div>
+  </div>
+
+  <!-- ═══════ QUIZ PAGE ═══════ -->
+  <div class="page active visible" id="page-quiz">
+    <div class="quiz-card neon-border" id="quizCard">
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Progress</span><span id="progressText">0 / 5</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width:0%">
+            <div class="progress-bubbles"><span></span><span></span><span></span><span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="score-display neon-gold" id="scoreDisplay">0</div>
+
+      <h2 id="questionText">Loading...</h2>
+      <div class="options" id="optionsContainer"></div>
+      <div class="result-text" id="resultText"></div>
+
+      <div class="quiz-nav">
+        <span class="q-counter" id="qCounter">Question 1 of 5</span>
+        <button class="nav-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next →</button>
+      </div>
+
+      <div style="text-align:center">
+        <button class="reset-btn" onclick="resetQuiz()">↺ Reset Quiz</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ VFX DEMO PAGE ═══════ -->
+  <div class="page" id="page-vfx">
+    <h2 class="neon-text" style="margin-bottom:16px">Visual Effects Demo</h2>
+    <p style="opacity:.6;margin-bottom:20px">Click each button to trigger the effect</p>
+    <div class="vfx-grid">
+      <button class="vfx-btn" onclick="demoConfetti()"><span class="emoji">🎊</span> Confetti Explosion</button>
+      <button class="vfx-btn" onclick="demoSparkles()"><span class="emoji">✨</span> Particle Sparkles</button>
+      <button class="vfx-btn" onclick="demoFlash('green')"><span class="emoji">💚</span> Green Flash</button>
+      <button class="vfx-btn" onclick="demoFlash('red')"><span class="emoji">❤️</span> Red Flash</button>
+      <button class="vfx-btn" onclick="demoScorePopup()"><span class="emoji">🔢</span> Score Popup</button>
+      <button class="vfx-btn" onclick="demoShake()"><span class="emoji">📳</span> Shake Effect</button>
+      <button class="vfx-btn" onclick="demoNeon()"><span class="emoji">💜</span> Neon Glow</button>
+      <button class="vfx-btn" onclick="demoProgress()"><span class="emoji">🌊</span> Liquid Progress</button>
+      <button class="vfx-btn" onclick="demoTransition()"><span class="emoji">🔄</span> Page Transition</button>
+      <button class="vfx-btn" onclick="demoAllEffects()"><span class="emoji">🎆</span> ALL EFFECTS</button>
+    </div>
+  </div>
+
+  <!-- ═══════ FLAGS PAGE ═══════ -->
+  <div class="page" id="page-flags">
+    <h2 class="neon-text" style="margin-bottom:16px">CSS-Only Flag Animations</h2>
+    <p style="opacity:.6;margin-bottom:20px">Hover over flags to see animations</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:16px" id="flagsGrid">
+    </div>
+  </div>
+
+  <footer>
+    VFX Quiz System — Built with Canvas, CSS Animations & Web Audio API
+  </footer>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   AUDIO ENGINE — Web Audio API
+   ═══════════════════════════════════════════════════════ */
+let audioCtx = null;
+let soundEnabled = true;
+
+function getAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playTone(freq, duration, type='sine', vol=0.15){
+  if(!soundEnabled) return;
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  gain.gain.setValueAtTime(vol, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + duration);
+}
+
+function playCorrectSound(){
+  playTone(523, 0.15, 'sine', 0.2);
+  setTimeout(()=>playTone(659, 0.15, 'sine', 0.2), 100);
+  setTimeout(()=>playTone(784, 0.3, 'sine', 0.2), 200);
+}
+
+function playWrongSound(){
+  playTone(200, 0.3, 'sawtooth', 0.12);
+  setTimeout(()=>playTone(150, 0.4, 'sawtooth', 0.1), 150);
+}
+
+function playComboSound(combo){
+  const base = 400 + combo * 50;
+  playTone(base, 0.1, 'square', 0.08);
+  setTimeout(()=>playTone(base * 1.25, 0.1, 'square', 0.08), 80);
+  setTimeout(()=>playTone(base * 1.5, 0.2, 'square', 0.08), 160);
+}
+
+function playConfettiSound(){
+  for(let i=0;i<8;i++){
+    setTimeout(()=>{
+      playTone(800+Math.random()*1200, 0.05, 'sine', 0.04);
+    }, i*60);
+  }
+}
+
+function toggleSound(){
+  soundEnabled = !soundEnabled;
+  document.getElementById('soundToggle').textContent = soundEnabled ? '🔊 Sound ON' : '🔇 Sound OFF';
+}
+
+/* ═══════════════════════════════════════════════════════
+   CONFETTI SYSTEM — Canvas-based physics
+   ═══════════════════════════════════════════════════════ */
+const confettiCanvas = document.getElementById('confetti-canvas');
+const confettiCtx = confettiCanvas.getContext('2d');
+let confettiPieces = [];
+
+function resizeConfettiCanvas(){
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+}
+resizeConfettiCanvas();
+window.addEventListener('resize', resizeConfettiCanvas);
+
+const CONFETTI_COLORS = ['#39ff14','#ff0a3c','#00f0ff','#b400ff','#ffd700','#ff6ec7','#ff4444','#44ff44','#4444ff','#ffff44'];
+
+class ConfettiPiece{
+  constructor(x, y){
+    this.x = x; this.y = y;
+    this.vx = (Math.random()-0.5)*16;
+    this.vy = -(Math.random()*12+4);
+    this.gravity = 0.35;
+    this.rotation = Math.random()*360;
+    this.rotSpeed = (Math.random()-0.5)*15;
+    this.width = Math.random()*10+5;
+    this.height = Math.random()*6+3;
+    this.color = CONFETTI_COLORS[Math.floor(Math.random()*CONFETTI_COLORS.length)];
+    this.opacity = 1;
+    this.decay = 0.005 + Math.random()*0.008;
+    this.shape = Math.random() > 0.5 ? 'rect' : 'circle';
+  }
+  update(){
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += this.gravity;
+    this.vx *= 0.99;
+    this.rotation += this.rotSpeed;
+    this.opacity -= this.decay;
+  }
+  draw(ctx){
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation * Math.PI/180);
+    ctx.globalAlpha = Math.max(0, this.opacity);
+    ctx.fillStyle = this.color;
+    if(this.shape === 'rect'){
+      ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, 0, this.width/2, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function spawnConfetti(x, y, count=80){
+  for(let i=0;i<count;i++){
+    confettiPieces.push(new ConfettiPiece(x, y));
+  }
+  playConfettiSound();
+  if(!confettiAnimating) animateConfetti();
+}
+
+let confettiAnimating = false;
+function animateConfetti(){
+  confettiAnimating = true;
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  confettiPieces = confettiPieces.filter(p => p.opacity > 0);
+  confettiPieces.forEach(p => { p.update(); p.draw(confettiCtx); });
+  if(confettiPieces.length > 0){
+    requestAnimationFrame(animateConfetti);
+  } else {
+    confettiAnimating = false;
+    confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SPARKLE PARTICLE SYSTEM — Canvas-based
+   ═══════════════════════════════════════════════════════ */
+const sparkleCanvas = document.getElementById('sparkle-canvas');
+const sparkleCtx = sparkleCanvas.getContext('2d');
+let sparkleParticles = [];
+
+function resizeSparkleCanvas(){
+  sparkleCanvas.width = window.innerWidth;
+  sparkleCanvas.height = window.innerHeight;
+}
+resizeSparkleCanvas();
+window.addEventListener('resize', resizeSparkleCanvas);
+
+class Sparkle{
+  constructor(x, y, color){
+    this.x = x; this.y = y;
+    const angle = Math.random()*Math.PI*2;
+    const speed = Math.random()*4+1;
+    this.vx = Math.cos(angle)*speed;
+    this.vy = Math.sin(angle)*speed;
+    this.life = 1;
+    this.decay = 0.015 + Math.random()*0.025;
+    this.size = Math.random()*4+1;
+    this.color = color || `hsl(${Math.random()*60+100},100%,70%)`;
+    this.twinkle = Math.random();
+  }
+  update(){
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.05;
+    this.life -= this.decay;
+    this.twinkle += 0.15;
+  }
+  draw(ctx){
+    const alpha = Math.max(0, this.life) * (0.5 + 0.5*Math.sin(this.twinkle));
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = this.color;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function spawnSparkles(x, y, count=40){
+  for(let i=0;i<count;i++){
+    sparkleParticles.push(new Sparkle(x, y));
+  }
+  playTone(1200, 0.1, 'sine', 0.08);
+  if(!sparkleAnimating) animateSparkles();
+}
+
+let sparkleAnimating = false;
+function animateSparkles(){
+  sparkleAnimating = true;
+  sparkleCtx.clearRect(0, 0, sparkleCanvas.width, sparkleCanvas.height);
+  sparkleParticles = sparkleParticles.filter(p => p.life > 0);
+  sparkleParticles.forEach(p => { p.update(); p.draw(sparkleCtx); });
+  if(sparkleParticles.length > 0){
+    requestAnimationFrame(animateSparkles);
+  } else {
+    sparkleAnimating = false;
+    sparkleCtx.clearRect(0, 0, sparkleCanvas.width, sparkleCanvas.height);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SCREEN FLASH
+   ═══════════════════════════════════════════════════════ */
+function screenFlash(color){
+  const overlay = document.getElementById('flash-overlay');
+  overlay.className = '';
+  void overlay.offsetWidth; // force reflow
+  overlay.className = `flash-${color}`;
+  setTimeout(()=>{ overlay.className = ''; }, 500);
+}
+
+/* ═══════════════════════════════════════════════════════
+   SCORE POPUP
+   ═══════════════════════════════════════════════════════ */
+function showScorePopup(x, y, text, positive=true){
+  const popup = document.createElement('div');
+  popup.className = `score-popup ${positive ? 'positive' : 'negative'}`;
+  popup.textContent = text;
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+  document.body.appendChild(popup);
+  setTimeout(()=>popup.remove(), 1300);
+}
+
+/* ═══════════════════════════════════════════════════════
+   SHAKE ANIMATION
+   ═══════════════════════════════════════════════════════ */
+function shakeElement(el){
+  el.classList.add('shake');
+  setTimeout(()=>el.classList.remove('shake'), 500);
+}
+
+/* ═══════════════════════════════════════════════════════
+   NEON GLOW DEMO
+   ═══════════════════════════════════════════════════════ */
+function demoNeon(){
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:3rem;font-weight:700;z-index:1000;pointer-events:none;';
+  el.className = 'neon-gold';
+  el.textContent = 'NEON!';
+  document.body.appendChild(el);
+  setTimeout(()=>{
+    el.style.transition = 'opacity 0.5s';
+    el.style.opacity = '0';
+    setTimeout(()=>el.remove(), 500);
+  }, 1500);
+}
+
+/* ═══════════════════════════════════════════════════════
+   LIQUID PROGRESS DEMO
+   ═══════════════════════════════════════════════════════ */
+function demoProgress(){
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;z-index:1000;';
+  wrap.innerHTML = `
+    <div class="progress-bar" style="height:24px">
+      <div class="progress-fill" id="demoProgressFill" style="width:0%">
+        <div class="progress-bubbles"><span></span><span></span><span></span><span></span></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+  const fill = document.getElementById('demoProgressFill');
+  let w = 0;
+  const iv = setInterval(()=>{
+    w += 2;
+    fill.style.width = w+'%';
+    if(w >= 100){
+      clearInterval(iv);
+      setTimeout(()=>{
+        wrap.style.transition='opacity 0.5s';
+        wrap.style.opacity='0';
+        setTimeout(()=>wrap.remove(),500);
+      }, 800);
+    }
+  }, 30);
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAGE TRANSITION
+   ═══════════════════════════════════════════════════════ */
+function demoTransition(){
+  const pages = document.querySelectorAll('.page');
+  const tabs = document.querySelectorAll('.tab');
+  const currentTab = document.querySelector('.tab.active').dataset.tab;
+  const tabOrder = ['quiz','vfx','flags'];
+  const nextIdx = (tabOrder.indexOf(currentTab)+1)%3;
+  switchTab(tabOrder[nextIdx]);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ALL EFFECTS COMBO
+   ═══════════════════════════════════════════════════════ */
+function demoAllEffects(){
+  spawnConfetti(window.innerWidth/2, window.innerHeight/2, 150);
+  spawnSparkles(window.innerWidth/2, window.innerHeight/2, 60);
+  screenFlash('green');
+  setTimeout(()=>screenFlash('red'), 400);
+  showScorePopup(window.innerWidth/2-40, window.innerHeight/2-80, '+999', true);
+  setTimeout(()=>showScorePopup(window.innerWidth/2+40, window.innerHeight/2-60, '+100', true), 200);
+  shakeElement(document.getElementById('app'));
+  playTone(523,0.1,'sine',0.15);
+  setTimeout(()=>playTone(659,0.1,'sine',0.15),100);
+  setTimeout(()=>playTone(784,0.1,'sine',0.15),200);
+  setTimeout(()=>playTone(1047,0.3,'sine',0.2),300);
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB SWITCHING
+   ═══════════════════════════════════════════════════════ */
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${name}"]`).classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>{
+    p.classList.remove('active','visible');
+    p.classList.add('exit');
+  });
+  const target = document.getElementById('page-'+name);
+  setTimeout(()=>{
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('exit'));
+    target.classList.add('active');
+    setTimeout(()=>target.classList.add('visible'), 50);
+  }, 100);
+}
+
+/* ═══════════════════════════════════════════════════════
+   QUIZ DATA
+   ═══════════════════════════════════════════════════════ */
+const quizData = [
+  {
+    q: "Which country has the largest population?",
+    options: [
+      {text:"🇨🇳 China", flag:"flag-cn", correct:false},
+      {text:"🇮🇳 India", flag:"flag-in", correct:true},
+      {text:"🇺🇸 United States", flag:"flag-us", correct:false},
+      {text:"🇧🇷 Brazil", flag:"flag-br", correct:false}
+    ]
+  },
+  {
+    q: "Which country is known as the Land of the Rising Sun?",
+    options: [
+      {text:"🇯🇵 Japan", flag:"flag-jp", correct:true},
+      {text:"🇨🇳 China", flag:"flag-cn", correct:false},
+      {text:"🇦🇺 Australia", flag:"flag-au", correct:false},
+      {text:"🇿🇦 South Africa", flag:"flag-za", correct:false}
+    ]
+  },
+  {
+    q: "Which country has a blue, white, and red flag?",
+    options: [
+      {text:"🇫🇷 France", flag:"flag-fr", correct:true},
+      {text:"🇩🇪 Germany", flag:"flag-de", correct:false},
+      {text:"🇨🇦 Canada", flag:"flag-ca", correct:false},
+      {text:"🇺🇸 United States", flag:"flag-us", correct:false}
+    ]
+  },
+  {
+    q: "Which country is home to the kangaroo?",
+    options: [
+      {text:"🇿🇦 South Africa", flag:"flag-za", correct:false},
+      {text:"🇧🇷 Brazil", flag:"flag-br", correct:false},
+      {text:"🇦🇺 Australia", flag:"flag-au", correct:true},
+      {text:"🇮🇳 India", flag:"flag-in", correct:false}
+    ]
+  },
+  {
+    q: "Which country has the largest area?",
+    options: [
+      {text:"🇨🇳 China", flag:"flag-cn", correct:false},
+      {text:"🇨🇦 Canada", flag:"flag-ca", correct:false},
+      {text:"🇺🇸 United States", flag:"flag-us", correct:false},
+      {text:"🇷🇺 Russia", flag:"flag-fr", correct:true}
+    ]
+  }
+];
+
+/* ═══════════════════════════════════════════════════════
+   QUIZ STATE
+   ═══════════════════════════════════════════════════════ */
+let currentQ = 0;
+let score = 0;
+let combo = 0;
+let answered = false;
+
+function loadQuestion(){
+  answered = false;
+  const q = quizData[currentQ];
+  document.getElementById('questionText').textContent = q.q;
+  document.getElementById('qCounter').textContent = `Question ${currentQ+1} of ${quizData.length}`;
+  document.getElementById('progressText').textContent = `${currentQ} / ${quizData.length}`;
+  document.getElementById('progressFill').style.width = `${(currentQ/quizData.length)*100}%`;
+  document.getElementById('resultText').textContent = '';
+  document.getElementById('resultText').className = 'result-text';
+  document.getElementById('nextBtn').disabled = true;
+
+  const container = document.getElementById('optionsContainer');
+  container.innerHTML = '';
+  q.options.forEach((opt, i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerHTML = `<span class="flag ${opt.flag}"></span>${opt.text}`;
+    btn.onclick = ()=>handleAnswer(btn, opt.correct, i);
+    container.appendChild(btn);
+  });
+}
+
+function handleAnswer(btn, correct, idx){
+  if(answered) return;
+  answered = true;
+
+  const card = document.getElementById('quizCard');
+  const rect = btn.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top + rect.height/2;
+
+  if(correct){
+    btn.classList.add('correct');
+    score += 100 + combo * 25;
+    combo++;
+    document.getElementById('scoreDisplay').textContent = score;
+    document.getElementById('resultText').textContent = '✅ Correct!';
+    document.getElementById('resultText').className = 'result-text correct-text';
+
+    // Trigger VFX
+    spawnConfetti(cx, cy, 50);
+    spawnSparkles(cx, cy, 30);
+    screenFlash('green');
+    showScorePopup(cx-30, cy-40, `+${100 + (combo-1)*25}`, true);
+    playCorrectSound();
+    if(combo > 1) playComboSound(combo);
+
+    // Update combo display
+    const comboEl = document.getElementById('combo');
+    const comboCount = document.getElementById('comboCount');
+    if(combo > 1){
+      comboEl.classList.add('visible');
+      comboCount.textContent = combo;
+      comboCount.style.animation = 'none';
+      void comboCount.offsetWidth;
+      comboCount.style.animation = '';
+    }
+  } else {
+    btn.classList.add('wrong');
+    combo = 0;
+    document.getElementById('combo').classList.remove('visible');
+    document.getElementById('resultText').textContent = '❌ Wrong!';
+    document.getElementById('resultText').className = 'result-text wrong-text';
+
+    // Trigger VFX
+    screenFlash('red');
+    shakeElement(card);
+    showScorePopup(cx-30, cy-40, '0', false);
+    playWrongSound();
+
+    // Highlight correct answer
+    const btns = document.querySelectorAll('.option-btn');
+    quizData[currentQ].options.forEach((opt, i)=>{
+      if(opt.correct) btns[i].classList.add('correct');
+    });
+  }
+
+  document.getElementById('nextBtn').disabled = false;
+  updateProgress();
+}
+
+function updateProgress(){
+  const pct = ((currentQ+1)/quizData.length)*100;
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressText').textContent = `${currentQ+1} / ${quizData.length}`;
+}
+
+function nextQuestion(){
+  currentQ++;
+  if(currentQ >= quizData.length){
+    currentQ = 0;
+    score = 0;
+    combo = 0;
+    document.getElementById('scoreDisplay').textContent = '0';
+    document.getElementById('combo').classList.remove('visible');
+  }
+  loadQuestion();
+}
+
+function resetQuiz(){
+  currentQ = 0; score = 0; combo = 0;
+  document.getElementById('scoreDisplay').textContent = '0';
+  document.getElementById('combo').classList.remove('visible');
+  loadQuestion();
+}
+
+/* ═══════════════════════════════════════════════════════
+   BACKGROUND PARTICLE FIELD
+   ═══════════════════════════════════════════════════════ */
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+let bgParticles = [];
+
+function resizeBgCanvas(){
+  bgCanvas.width = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+}
+resizeBgCanvas();
+window.addEventListener('resize', resizeBgCanvas);
+
+class BgParticle{
+  constructor(){
+    this.reset();
+  }
+  reset(){
+    this.x = Math.random()*bgCanvas.width;
+    this.y = Math.random()*bgCanvas.height;
+    this.size = Math.random()*2+0.5;
+    this.speedX = (Math.random()-0.5)*0.3;
+    this.speedY = (Math.random()-0.5)*0.3;
+    this.opacity = Math.random()*0.5+0.1;
+    this.hue = Math.random()*60+200;
+  }
+  update(){
+    this.x += this.speedX;
+    this.y += this.speedY;
+    if(this.x < 0 || this.x > bgCanvas.width) this.speedX *= -1;
+    if(this.y < 0 || this.y > bgCanvas.height) this.speedY *= -1;
+  }
+  draw(ctx){
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+    ctx.fillStyle = `hsl(${this.hue},80%,70%)`;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+for(let i=0;i<80;i++) bgParticles.push(new BgParticle());
+
+function drawConnections(){
+  for(let i=0;i<bgParticles.length;i++){
+    for(let j=i+1;j<bgParticles.length;j++){
+      const dx = bgParticles[i].x - bgParticles[j].x;
+      const dy = bgParticles[i].y - bgParticles[j].y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist < 120){
+        bgCtx.save();
+        bgCtx.globalAlpha = (1-dist/120)*0.15;
+        bgCtx.strokeStyle = `hsl(${bgParticles[i].hue},60%,60%)`;
+        bgCtx.lineWidth = 0.5;
+        bgCtx.beginPath();
+        bgCtx.moveTo(bgParticles[i].x, bgParticles[i].y);
+        bgCtx.lineTo(bgParticles[j].x, bgParticles[j].y);
+        bgCtx.stroke();
+        bgCtx.restore();
+      }
+    }
+  }
+}
+
+function animateBg(){
+  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+  bgParticles.forEach(p=>{p.update();p.draw(bgCtx);});
+  drawConnections();
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+/* ═══════════════════════════════════════════════════════
+   CSS-ONLY FLAGS GRID
+   ═══════════════════════════════════════════════════════ */
+const flags = [
+  {name:'France',cls:'flag-fr'},{name:'USA',cls:'flag-us'},
+  {name:'Japan',cls:'flag-jp'},{name:'Brazil',cls:'flag-br'},
+  {name:'Germany',cls:'flag-de'},{name:'China',cls:'flag-cn'},
+  {name:'India',cls:'flag-in'},{name:'Australia',cls:'flag-au'},
+  {name:'S. Africa',cls:'flag-za'},{name:'Canada',cls:'flag-ca'}
+];
+const flagsGrid = document.getElementById('flagsGrid');
+flags.forEach(f=>{
+  const card = document.createElement('div');
+  card.style.cssText = 'text-align:center;padding:16px 8px;background:rgba(255,255,255,.05);border-radius:12px;border:1px solid rgba(255,255,255,.1);transition:all 0.3s ease;cursor:pointer;';
+  card.onmouseenter = ()=>{
+    card.style.transform='scale(1.1) rotate(5deg)';
+    card.style.boxShadow='0 0 20px rgba(0,240,255,.3)';
+    card.style.borderColor='var(--neon-blue)';
+  };
+  card.onmouseleave = ()=>{
+    card.style.transform='';
+    card.style.boxShadow='';
+    card.style.borderColor='';
+  };
+  card.innerHTML = `<div class="flag ${f.cls}" style="width:60px;height:40px;border-radius:4px;margin:0 auto 8px"></div><div style="font-size:.8rem;opacity:.7">${f.name}</div>`;
+  flagsGrid.appendChild(card);
+});
+
+/* ═══════════════════════════════════════════════════════
+   DEMO FUNCTIONS
+   ═══════════════════════════════════════════════════════ */
+function demoConfetti(){
+  spawnConfetti(window.innerWidth/2, window.innerHeight/2, 120);
+}
+
+function demoSparkles(){
+  spawnSparkles(window.innerWidth/2, window.innerHeight/2, 50);
+}
+
+function demoFlash(color){
+  screenFlash(color);
+  playTone(color==='green'?523:200, 0.2, color==='green'?'sine':'sawtooth', 0.15);
+}
+
+function demoScorePopup(){
+  showScorePopup(window.innerWidth/2-40, window.innerHeight/2-40, '+500', true);
+  setTimeout(()=>showScorePopup(window.innerWidth/2+20, window.innerHeight/2-20, '+250', true), 300);
+}
+
+function demoShake(){
+  shakeElement(document.getElementById('app'));
+  playTone(150, 0.3, 'sawtooth', 0.1);
+}
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════ */
+loadQuestion();
+</script>
+</body>
+</html>

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asian Countries Interactive Map</title>
+
+    <!--
+    ========================================
+    BEST GEOJSON/TOPOJSON CDN SOURCES FOUND:
+    ========================================
+
+    1. world-atlas (TopoJSON) - BEST FOR WEB
+       CDN: https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json
+       Size: ~107KB (110m) or ~756KB (50m)
+       Format: TopoJSON (needs topojson-client to convert)
+       IDs: UN M49 numeric codes
+       Pros: Smallest size, fast CDN, standard format
+       Cons: No properties embedded (names only)
+
+    2. Natural Earth GeoJSON
+       CDN: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson
+       Size: ~3MB
+       Format: GeoJSON with full properties
+       Properties: CONTINENT, REGION_WB, SUBREGION, ISO_A3, etc.
+       Pros: Complete metadata, standard GeoJSON
+       Cons: Large file size, GitHub raw CDN can be slow
+
+    3. Alternative sources (tested but 404/unreliable):
+       - deldersveld/topojson (removed from GitHub)
+       - johanundberg/world-countries-geojson (removed)
+       - leakyMirror/map-of-the-world (removed)
+
+    RECOMMENDED APPROACH:
+    Use world-atlas TopoJSON (~107KB) from jsDelivr CDN +
+    Natural Earth metadata for country properties.
+    Embed Asian country data inline for instant loading.
+    ========================================
+    -->
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; overflow: hidden; }
+        #map { width: 100vw; height: 100vh; z-index: 1; }
+        #game-ui {
+            position: absolute; top: 16px; right: 16px; z-index: 1000;
+            background: rgba(26, 26, 46, 0.95); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 16px; min-width: 280px; backdrop-filter: blur(10px);
+        }
+        #game-ui h2 { font-size: 18px; margin-bottom: 12px; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; }
+        #score { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
+        #score span { padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.05); }
+        #current-country { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; margin-bottom: 12px; text-align: center; }
+        #current-country .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        #current-country .name { font-size: 20px; font-weight: bold; color: #fff; margin-top: 4px; }
+        #current-country .region { font-size: 12px; color: #aaa; margin-top: 2px; }
+        #hint-btn { width: 100%; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        #hint-btn:hover { background: rgba(255,255,255,0.2); }
+        #legend {
+            position: absolute; bottom: 16px; left: 16px; z-index: 1000;
+            background: rgba(26, 26, 46, 0.95); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 16px; backdrop-filter: blur(10px);
+        }
+        #legend h3 { font-size: 14px; margin-bottom: 8px; color: #fff; }
+        .legend-item { display: flex; align-items: center; margin: 4px 0; font-size: 12px; }
+        .legend-color { width: 16px; height: 16px; border-radius: 4px; margin-right: 8px; border: 1px solid rgba(255,255,255,0.2); }
+        #toast {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 2000; background: rgba(26, 26, 46, 0.95); border-radius: 12px;
+            padding: 20px 30px; text-align: center; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        #toast.show { opacity: 1; }
+        #toast .toast-title { font-size: 24px; font-weight: bold; margin-bottom: 4px; }
+        #toast .toast-subtitle { font-size: 14px; color: #888; }
+        #toast.correct .toast-title { color: #2ecc71; }
+        #toast.wrong .toast-title { color: #e74c3c; }
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #1a1a2e; display: flex; align-items: center; justify-content: center;
+            z-index: 9999; flex-direction: column; gap: 16px;
+        }
+        #loading .spinner {
+            width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #3498db; border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading p { color: #888; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading map data...</p>
+    </div>
+    <div id="map"></div>
+    <div id="game-ui">
+        <h2>🌏 Asia Country Quiz</h2>
+        <div id="score">
+            <span>✅ <span id="correct-count">0</span></span>
+            <span>❌ <span id="wrong-count">0</span></span>
+            <span>📍 <span id="remaining-count">0</span></span>
+        </div>
+        <div id="current-country">
+            <div class="label">Find this country</div>
+            <div class="name" id="target-name">...</div>
+            <div class="region" id="target-region">...</div>
+        </div>
+        <button id="hint-btn" onclick="showHint()">💡 Show Hint</button>
+    </div>
+    <div id="legend">
+        <h3>Regions</h3>
+        <div id="legend-items"></div>
+    </div>
+    <div id="toast">
+        <div class="toast-title" id="toast-title"></div>
+        <div class="toast-subtitle" id="toast-subtitle"></div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+    <script>
+
+        const ASIAN_COUNTRIES = {
+  "887": {
+    "name": "Yemen",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "704": {
+    "name": "Vietnam",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "860": {
+    "name": "Uzbekistan",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Central Asia"
+  },
+  "784": {
+    "name": "United Arab Emirates",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "795": {
+    "name": "Turkmenistan",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Central Asia"
+  },
+  "792": {
+    "name": "Turkey",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Western Asia"
+  },
+  "626": {
+    "name": "East Timor",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "764": {
+    "name": "Thailand",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "762": {
+    "name": "Tajikistan",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Central Asia"
+  },
+  "158": {
+    "name": "Taiwan",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "Eastern Asia"
+  },
+  "760": {
+    "name": "Syria",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "144": {
+    "name": "Sri Lanka",
+    "region_wb": "South Asia",
+    "subregion": "Southern Asia"
+  },
+  "410": {
+    "name": "South Korea",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "Eastern Asia"
+  },
+  "702": {
+    "name": "Singapore",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "682": {
+    "name": "Saudi Arabia",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "634": {
+    "name": "Qatar",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "608": {
+    "name": "Philippines",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "586": {
+    "name": "Pakistan",
+    "region_wb": "South Asia",
+    "subregion": "Southern Asia"
+  },
+  "512": {
+    "name": "Oman",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "408": {
+    "name": "North Korea",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "Eastern Asia"
+  },
+  "524": {
+    "name": "Nepal",
+    "region_wb": "South Asia",
+    "subregion": "Southern Asia"
+  },
+  "496": {
+    "name": "Mongolia",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "Eastern Asia"
+  },
+  "458": {
+    "name": "Malaysia",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "422": {
+    "name": "Lebanon",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "418": {
+    "name": "Laos",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "417": {
+    "name": "Kyrgyzstan",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Central Asia"
+  },
+  "414": {
+    "name": "Kuwait",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "398": {
+    "name": "Kazakhstan",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Central Asia"
+  },
+  "400": {
+    "name": "Jordan",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "392": {
+    "name": "Japan",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "Eastern Asia"
+  },
+  "376": {
+    "name": "Israel",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "275": {
+    "name": "Palestine",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "368": {
+    "name": "Iraq",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "364": {
+    "name": "Iran",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Southern Asia"
+  },
+  "360": {
+    "name": "Indonesia",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "356": {
+    "name": "India",
+    "region_wb": "South Asia",
+    "subregion": "Southern Asia"
+  },
+  "268": {
+    "name": "Georgia",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Western Asia"
+  },
+  "-99": {
+    "name": "Siachen Glacier",
+    "region_wb": "South Asia",
+    "subregion": "Southern Asia"
+  },
+  "196": {
+    "name": "Cyprus",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Western Asia"
+  },
+  "156": {
+    "name": "China",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "Eastern Asia"
+  },
+  "446": {
+    "name": "Macao S.A.R",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "Eastern Asia"
+  },
+  "344": {
+    "name": "Hong Kong S.A.R.",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "Eastern Asia"
+  },
+  "116": {
+    "name": "Cambodia",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "104": {
+    "name": "Myanmar",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "096": {
+    "name": "Brunei",
+    "region_wb": "East Asia & Pacific",
+    "subregion": "South-Eastern Asia"
+  },
+  "064": {
+    "name": "Bhutan",
+    "region_wb": "South Asia",
+    "subregion": "Southern Asia"
+  },
+  "050": {
+    "name": "Bangladesh",
+    "region_wb": "South Asia",
+    "subregion": "Southern Asia"
+  },
+  "048": {
+    "name": "Bahrain",
+    "region_wb": "Middle East & North Africa",
+    "subregion": "Western Asia"
+  },
+  "031": {
+    "name": "Azerbaijan",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Western Asia"
+  },
+  "051": {
+    "name": "Armenia",
+    "region_wb": "Europe & Central Asia",
+    "subregion": "Western Asia"
+  },
+  "004": {
+    "name": "Afghanistan",
+    "region_wb": "South Asia",
+    "subregion": "Southern Asia"
+  }
+};
+
+
+        const REGION_COLORS = {
+            "Eastern Asia": "#e74c3c",
+            "South-Eastern Asia": "#e67e22",
+            "Southern Asia": "#f1c40f",
+            "Central Asia": "#2ecc71",
+            "Western Asia": "#3498db",
+        };
+
+        let remainingCountries = {};
+        let correctCount = 0;
+        let wrongCount = 0;
+        let currentTarget = null;
+        let countryLayers = {};
+        let map, geoLayer;
+
+        async function init() {
+            map = L.map('map', {
+                center: [30, 100],
+                zoom: 3,
+                minZoom: 1,
+                maxZoom: 18,
+                zoomControl: true
+            });
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            remainingCountries = {...ASIAN_COUNTRIES};
+            await loadAndRender();
+            pickNewTarget();
+            updateScore();
+            buildLegend();
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function loadAndRender() {
+            try {
+                const response = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+                const topojson = await response.json();
+                const geojson = topojson.feature(topojson, topojson.objects.countries);
+
+                geoLayer = L.geoJSON(geojson, {
+                    style: getCountryStyle,
+                    onEachFeature: onEachFeature,
+                    filter: feature => {
+                        return feature.properties && feature.properties.id !== undefined;
+                    }
+                }).addTo(map);
+
+                geoLayer.eachLayer(layer => {
+                    const id = layer.feature.properties.id;
+                    if (id !== undefined) {
+                        countryLayers[id] = layer;
+                    }
+                });
+
+            } catch (err) {
+                console.error('Failed to load TopoJSON:', err);
+                document.getElementById('loading').innerHTML = '<p style="color: #e74c3c;">Failed to load map data. Please refresh.</p>';
+            }
+        }
+
+        function getCountryStyle(feature) {
+            const id = feature.properties.id;
+            const info = ASIAN_COUNTRIES[id];
+
+            if (info) {
+                const color = REGION_COLORS[info.subregion] || '#555';
+                return {
+                    color: color,
+                    weight: 1.5,
+                    opacity: 0.8,
+                    fillColor: color,
+                    fillOpacity: 0.4,
+                };
+            }
+
+            return {
+                color: '#333',
+                weight: 0.5,
+                opacity: 0.3,
+                fillColor: '#222',
+                fillOpacity: 0.15,
+            };
+        }
+
+        function onEachFeature(feature, layer) {
+            const id = feature.properties.id;
+            const info = ASIAN_COUNTRIES[id];
+
+            if (!info) return;
+            if (!(id in remainingCountries)) return;
+
+            layer.on({
+                mouseover: function(e) {
+                    const layer = e.target;
+                    layer.setStyle({ weight: 2.5, fillOpacity: 0.6, color: '#fff' });
+                    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                        layer.bringToFront();
+                    }
+                },
+                mouseout: function(e) {
+                    const layer = e.target;
+                    if (id in remainingCountries) {
+                        geoLayer.resetStyle(layer);
+                    }
+                },
+                click: function(e) {
+                    handleCountryClick(id, info, e.target);
+                }
+            });
+        }
+
+        function handleCountryClick(id, info, layer) {
+            if (!(id in remainingCountries)) return;
+
+            if (id === currentTarget) {
+                correctCount++;
+                layer.setStyle({ fillColor: '#2ecc71', fillOpacity: 0.8, color: '#2ecc71', weight: 3 });
+                showToast('correct', 'Correct!', info.name + ' found!');
+
+                setTimeout(() => {
+                    layer.setStyle({ fillOpacity: 0.05, opacity: 0.1, weight: 0.5, color: '#333', fillColor: '#222' });
+                    delete remainingCountries[id];
+                    pickNewTarget();
+                    updateScore();
+                }, 500);
+
+            } else {
+                wrongCount++;
+                layer.setStyle({ fillColor: '#e74c3c', fillOpacity: 0.7, color: '#e74c3c', weight: 3 });
+                showToast('wrong', 'Wrong!', 'That\'s ' + info.name + ', not ' + ASIAN_COUNTRIES[currentTarget].name);
+
+                setTimeout(() => {
+                    geoLayer.resetStyle(layer);
+                }, 600);
+
+                updateScore();
+            }
+        }
+
+        function pickNewTarget() {
+            const ids = Object.keys(remainingCountries);
+            if (ids.length === 0) {
+                document.getElementById('target-name').textContent = '🎉 Complete!';
+                document.getElementById('target-region').textContent = 'All countries found!';
+                showToast('correct', '🎉 Congratulations!', 'You found all Asian countries!');
+                return;
+            }
+
+            currentTarget = ids[Math.floor(Math.random() * ids.length)];
+            const info = remainingCountries[currentTarget];
+
+            document.getElementById('target-name').textContent = info.name;
+            document.getElementById('target-region').textContent = info.subregion + ' \u2022 ' + info.region_wb;
+        }
+
+        function updateScore() {
+            document.getElementById('correct-count').textContent = correctCount;
+            document.getElementById('wrong-count').textContent = wrongCount;
+            document.getElementById('remaining-count').textContent = Object.keys(remainingCountries).length;
+        }
+
+        function showToast(type, title, subtitle) {
+            const toast = document.getElementById('toast');
+            toast.className = type;
+            document.getElementById('toast-title').textContent = title;
+            document.getElementById('toast-subtitle').textContent = subtitle;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 1500);
+        }
+
+        function showHint() {
+            if (!currentTarget || !(currentTarget in remainingCountries)) return;
+            const layer = countryLayers[currentTarget];
+            if (!layer) return;
+
+            layer.setStyle({ weight: 4, color: '#fff', fillOpacity: 0.7 });
+            map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+
+            setTimeout(() => { geoLayer.resetStyle(layer); }, 2000);
+        }
+
+        function buildLegend() {
+            const container = document.getElementById('legend-items');
+            for (const [region, color] of Object.entries(REGION_COLORS)) {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = '<div class="legend-color" style="background: ' + color + '"></div>' + region;
+                container.appendChild(item);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

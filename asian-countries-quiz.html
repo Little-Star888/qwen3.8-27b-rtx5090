@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌏 Ultimate Asian Countries Quiz</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* ===== CORE STYLES ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a1a; --card: rgba(20, 20, 50, 0.85);
+            --border: rgba(100, 100, 255, 0.2);
+            --text: #e8e8ff; --text-dim: #8888bb;
+            --orange: #f39c12; --red: #e74c3c; --Green: #2ecc71;
+            --Blue: #3498db; --Purple: #9b59b6; --Cyan: #00d4ff;
+            --Pink: #ff6b9d; --Gold: #ffd700;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; overflow-x: hidden;
+        }
+        /* Animated background */
+        .bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+        }
+        .bg .star {
+            position: absolute; width: 2px; height: 2px;
+            background: white; border-radius: 50%;
+            animation: twinkle var(--dur) ease-in-out infinite; opacity: 0;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; }
+            50% { opacity: var(--op); }
+        }
+        .bg-glow {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(100, 0, 150, 0.15) 0%, transparent 50%),
+                Radial-gradient(ellipse at 80% 20%, rgba(0, 100, 200, 0.1) 0%, transparent 50%),
+                Radial-gradient(ellipse at 50% 80%, rgba(200, 100, 0, 0.08) 0%, transparent 50%);
+        }
+        /* Header */
+        .header {
+            text-align: center; padding: 25px 20px 15px;
+        }
+        .header h1 {
+            font-size: 2.5rem; font-weight: 800;
+            background: linear-gradient(135deg, var(--Orange), var(--Red), var(--Pink), var(--Purple));
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: grad-shift 4s ease infinite;
+            letter-spacing: 3px; text-transform: uppercase;
+        }
+        @keyframes grad-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .header .sub { color: var(--text-dim); font-size: 1rem; }
+        /* Layout */
+        .game {
+            display: flex; gap: 20px; max-width: 1500px;
+            margin: 0 auto; padding: 0 20px 20px;
+            min-height: calc(100vh - 120px);
+        }
+        .map-panel { flex: 1; min-width: 0; }
+        .sidebar {
+            width: 380px; min-width: 340px; display: flex;
+            flex-direction: column; gap: 15px;
+            overflow-y: auto; max-height: calc(100vh - 140px);
+        }
+        #map {
+            width: 100%; height: 550px; border-radius: 20px;
+            border: 2px solid var(--border);
+            box-shadow: 0 0 40px rgba(100, 100, 255, 0.1), 0 8px 32px rgba(0,0,0,0.5);
+        }
+        /* Glass panels */
+        .panel {
+            background: var(--card); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; padding: 20px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .panel h2 {
+            font-size: 1rem; color: var(--Cyan); margin-bottom: 15px;
+            text-transform: uppercase; letter-spacing: 1.5px;
+        }
+        /* Score grid */
+        .score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .score-item {
+            text-align: center; padding: 12px 8px; border-radius: 12px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .score-item .Val { font-size: 1.8rem; font-weight: 800; }
+        .score-item .lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; }
+        .score-item.ok .Val { color: var(--Green); }
+        .score-item.bad .Val { color: var(--Red); }
+        .score-item.left .Val { color: var(--Blue); }
+        /* Progress */
+        .prog-bar {
+            width: 100%; height: 8px; background: rgba(255,255,255,0.08);
+            border-radius: 4px; overflow: hidden; margin-top: 12px;
+        }
+        .prog-fill {
+            height: 100%; background: linear-gradient(90deg, var(--Green), var(--Cyan));
+            border-radius: 4px; transition: width 0.5s ease;
+        }
+        /* Streak */
+        .streak {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .streak.hot {
+            background: rgba(243, 156, 18, 0.1);
+            border-color: rgba(243, 156, 18, 0.3);
+            animation: glow 1.5s ease-in-out infinite;
+        }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(243, 156, 18, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(243, 156, 18, 0.4); }
+        }
+        .streak .fire { font-size: 1.3rem; }
+        .streak .Cnt { font-size: 1.5rem; font-weight: 800; color: var(--Orange); }
+        .streak .Mul { font-size: 0.85rem; color: var(--Orange); }
+        /* Input */
+        .sel-display {
+            background: linear-gradient(135deg, rgba(243, 156, 18, 0.1), rgba(231, 76, 60, 0.1));
+            border: 1px solid rgba(243, 156, 18, 0.3);
+            border-radius: 12px; padding: 15px; text-align: center;
+        }
+        .sel-display .Flag { font-size: 2rem; display: block; margin-bottom: 5px; }
+        .sel-display .Name { font-size: 1.3rem; font-weight: 700; color: var(--Orange); }
+        .sel-display .Hint { font-size: 0.8rem; color: var(--text-dim); }
+        #inp {
+            width: 100%; padding: 14px 18px; border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 12px; background: rgba(255,255,255,0.05);
+            color: var(--text); font-size: 1.1rem; outline: none;
+            text-align: center; letter-spacing: 1px;
+        }
+        #inp:focus { border-color: var(--Orange); box-shadow: 0 0 20px rgba(243, 156, 18, 0.3); }
+        #inp:disabled { opacity: 0.5; }
+        /* Buttons */
+        .btn-grp { display: flex; gap: 8px; margin-top: 10px; }
+        .btn {
+            flex: 1; padding: 12px 16px; border: none; border-radius: 12px;
+            cursor: pointer; font-size: 0.9rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-go {
+            background: linear-gradient(135deg, var(--Orange), #e67e22);
+            color: #1a1a2e; box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
+        .btn-hint {
+            background: linear-gradient(135deg, var(--Blue), #2980b9);
+            color: white; box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        /* Result */
+        .res {
+            text-align: center; padding: 12px; border-radius: 12px;
+            min-height: 48px; display: flex; align-items: center;
+            justify-content: center; transition: all 0.3s;
+        }
+        .Res.ok {
+            background: rgba(46, 204, 113, 0.15); color: var(--Green);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+        .Res.bad {
+            background: rgba(231, 76, 60, 0.15); color: var(--Red);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            animation: shake 0.5s ease;
+        }
+        .Res.hint {
+            background: rgba(52, 152, 219, 0.15); color: var(--Blue);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+        .Res.win {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(243, 156, 18, 0.2));
+            color: var(--Gold); border: 1px solid rgba(255, 215, 0, 0.4);
+            animation: win-pulse 1s ease infinite;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+        @keyframes win-pulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6); }
+        }
+        /* Country list */
+        .clist {
+            max-height: 300px; overflow-y: auto; display: flex;
+            flex-direction: column; gap: 3px;
+        }
+        .clist::-webkit-scrollbar { width: 4px; }
+        .clist::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+        .c-item {
+            padding: 8px 12px; border-radius: 8px;
+            display: flex; justify-content: space-between;
+            font-size: 0.85rem;
+        }
+        .c-item .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+        .c-item.ok { background: rgba(46, 204, 113, 0.1); color: var(--Green); }
+        .c-item.ok .dot { background: var(--Green); }
+        .c-item.bad { background: rgba(231, 76, 60, 0.1); color: var(--Red); }
+        .c-item.bad .dot { background: var(--Red); }
+        .c-item.left { color: var(--text-dim); }
+        .c-item.left .dot { background: var(--text-dim); }
+        /* Region filters */
+        .r-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+        .r-btn {
+            padding: 6px 12px; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px; background: rgba(255,255,255,0.05);
+            color: var(--text-dim); font-size: 0.75rem; cursor: pointer;
+            text-transform: uppercase; font-weight: 600;
+        }
+        .r-btn:hover { background: rgba(255,255,255,0.1); }
+        .r-btn.active { background: rgba(52, 152, 219, 0.2); border-color: var(--Blue); color: var(--Blue); }
+        /* Mode selector */
+        .modes { display: flex; gap: 8px; }
+        .mode-btn {
+            flex: 1; padding: 10px 8px; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px; background: rgba(255,255,255,0.05);
+            color: var(--text-dim); font-size: 0.75rem; cursor: pointer;
+            text-align: center; font-weight: 600;
+        }
+        .mode-btn:hover { background: rgba(255,255,255,0.1); }
+        .mode-btn.active { background: rgba(155, 89, 182, 0.2); border-color: var(--Purple); color: var(--Purple); }
+        /* Timer & lives */
+        .timer-box, .lives-box {
+            text-align: center; padding: 10px; border-radius: 12px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .timer-box .Time, .lives-box .Time {
+            font-size: 2rem; font-weight: 800; font-family: 'Courier New', monospace;
+            color: var(--Cyan);
+        }
+        /* Markers */
+        .marker-pin {
+            width: 32px; height: 32px; border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg); display: flex; align-items: center;
+            justify-content: center; box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+            cursor: pointer;
+        }
+        .marker-pin.def { background: linear-gradient(135deg, var(--Orange), #e67e22); }
+        .marker-pin.ok { background: linear-gradient(135deg, var(--Green), #27ae60); }
+        .marker-pin.bad { background: linear-gradient(135deg, var(--Red), #c0392b); }
+        .marker-pin.sel {
+            background: linear-gradient(135deg, var(--Red), var(--Orange));
+            box-shadow: 0 0 25px rgba(231, 76, 60, 0.7);
+            animation: pulse 1s ease infinite;
+        }
+        .marker-pin.hint { background: linear-gradient(135deg, var(--Blue), #2980b9); }
+        .marker-pin .inner { transform: rotate(45deg); font-size: 12px; color: white; font-weight: 800; }
+        @keyframes pulse {
+            0%, 100% { transform: rotate(-45deg) scale(1); }
+            50% { transform: rotate(-45deg) scale(1.15); }
+        }
+        /* Confetti */
+        #confetti { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+        /* Screen flash */
+        .flash {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 9998; opacity: 0;
+        }
+        .flash.green { background: radial-gradient(circle, rgba(46, 204, 113, 0.15), transparent); }
+        .flash.red { background: radial-gradient(circle, rgba(231, 76, 60, 0.15), transparent); }
+        .flash.active { opacity: 1; }
+        /* Score popup */
+        .s-popup {
+            position: fixed; font-size: 1.5rem; font-weight: 800;
+            pointer-events: none; z-index: 10000;
+            animation: float-up 1.5s ease forwards;
+        }
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
+        }
+        /* Achievement */
+        .achieve {
+            position: fixed; top: 20px; right: 20px; padding: 15px 20px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(243, 156, 18, 0.2));
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            color: var(--Gold); font-weight: 700; z-index: 10000;
+            transform: translateX(400px);
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .achieve.show { transform: translateX(0); }
+        /* Leaderboard */
+        .lb-entry {
+            display: flex; justify-content: space-between; padding: 8px 12px;
+            border-radius: 8px; background: rgba(255,255,255,0.05); margin-bottom: 4px;
+        }
+        .lb-entry .rank { color: var(--Orange); font-weight: 700; }
+        .lb-entry .score { color: var(--Green); font-weight: 700; }
+        /* Sound toggle */
+        .snd {
+            position: fixed; bottom: 20px; right: 20px; width: 48px; height: 48px;
+            border-radius: 50%; background: var(--card); border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-dim); font-size: 1.3rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+        }
+        /* Reset */
+        .btn-reset {
+            background: rgba(255,255,255,0.08); color: var(--text-dim);
+            width: 100%; border: 1px solid rgba(255,255,255,0.1);
+        }
+        /* Responsive */
+        @media (max-width: 1100px) {
+            .game { flex-direction: column; }
+            .sidebar { width: 100%; max-height: none; }
+            #map { height: 450px; }
+        }
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.4rem; }
+            #map { height: 350px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg" id="bg"></div>
+    <div class="bg-glow"></div>
+    <div class="flash" id="flash"></div>
+    <div class="achieve" id="achieve"><span class="icon">🏆</span> <span id="ach-text"></span></div>
+    <div class="header">
+        <h1>🌏 Asian Countries Quiz 🌏</h1>
+        <p class="Sub">Click a marker • Type the country • Test your knowledge</p>
+    </div>
+    <div class="Game">
+        <div class="Map-panel">
+            <div id="map"></div>
+        </div>
+        <div class="Sidebar">
+            <!-- Score -->
+            <div class="Panel">
+                <h2>📊 Score</h2>
+                <div class="Score-grid">
+                    <div class="Score-item ok"><div class="Val" id="ok-cnt">0</div><div class="Lbl">Correct</div></div>
+                    <div class="Score-item bad"><div class="Val" id="bad-cnt">0</div><div class="Lbl">Wrong</div></div>
+                    <div class="Score-item left"><div class="Val" id="left-cnt">TOTAL</div><div class="Lbl">Left</div></div>
+                </div>
+                <div class="Prog-bar"><div class="Prog-fill" id="prog-fill" style="width: 0%"></div></div>
+            </div>
+            <!-- Streak -->
+            <div class="Panel">
+                <h2>🔥 Streak</h2>
+                <div class="Streak" id="streak-box">
+                    <span class="Fire">🔥</span>
+                    <span class="Cnt" id="streak-cnt">0</span>
+                    <span class="Mul" id="streak-mul">×1.0</span>
+                </div>
+            </div>
+            <!-- Mode -->
+            <div class="Panel">
+                <h2>🎮 Mode</h2>
+                <div class="Modes">
+                    <div class="Mode-btn active" data-mode="classic" onclick="setMode('classic')">🎯 Classic</div>
+                    <div class="Mode-btn" data-mode="timed" onclick="setMode('timed')">⏱️ Timed</div>
+                    <div class="Mode-btn" data-mode="lives" onclick="setMode('lives')">❤️ Lives</div>
+                </div>
+                <div class="Timer-box" id="timer-box" style="display:none;">
+                    <div class="Time" id="timer-val">05:00</div>
+                </div>
+                <div class="Lives-box" id="lives-box" style="display:none;">
+                    <div class="Time" id="lives-val">❤️❤️❤️</div>
+                </div>
+            </div>
+            <!-- Regions -->
+            <div class="Panel">
+                <h2>🗺️ Regions</h2>
+                <div class="R-filters" id="r-filters"></div>
+            </div>
+            <!-- Input -->
+            <div class="Panel">
+                <h2>🎯 Guess</h2>
+                <div class="Sel-display" id="sel-display">
+                    <div style="color: var(--text-dim);">Click a marker on the map</div>
+                </div>
+                <div class="Btn-grp">
+                    <input type="text" id="inp" placeholder="Type country name..." autocomplete="off" disabled>
+                </div>
+                <div class="Btn-grp">
+                    <button class="Btn btn-go" id="btn-go" disabled>Submit</button>
+                    <button class="Btn btn-hint" id="btn-hint" disabled>💡 Hint</button>
+                </div>
+                <div class="Res" id="res"></div>
+            </div>
+            <!-- Country List -->
+            <div class="Panel">
+                <h2>📋 Countries</h2>
+                <div class="Clist" id="clist"></div>
+            </div>
+            <!-- Leaderboard -->
+            <div class="Panel">
+                <h2>🏆 Best Scores</h2>
+                <div id="leaderboard">
+                    <div style="text-align:center;color:var(--text-dim);padding:10px;">Complete a quiz to see scores!</div>
+                </div>
+            </div>
+            <div class="Panel">
+                <button class="Btn btn-reset" id="btn-reset">🔄 Reset Quiz</button>
+            </div>
+        </div>
+    </div>
+    <canvas id="Confetti" style="display:none;"></canvas>
+    <button class="Snd" id="snd-toggle">🔊</button>
+    <script>
+    // ===== DATA =====
+    const COUNTRIES = [{"name": "Afghanistan", "lat": 33.9391, "lng": 67.71, "capital": "Kabul", "population_millions": 41.1, "region": "South Asia", "flag": "🇦🇫", "alternate_names": ["Afghanistan", "Republic of Afghanistan", "Afghan"], "continent_color_hint": "landlocked South Asian country, mountainous terrain"}, {"name": "Armenia", "lat": 40.0691, "lng": 45.0382, "capital": "Yerevan", "population_millions": 2.8, "region": "Western Asia", "flag": "🇦🇲", "alternate_names": ["Armenia", "Republic of Armenia", "Hayastan"], "continent_color_hint": "transcontinental, Caucasus region, landlocked"}, {"name": "Azerbaijan", "lat": 40.1431, "lng": 49.5538, "capital": "Baku", "population_millions": 10.1, "region": "Western Asia", "flag": "🇦🇿", "alternate_names": ["Azerbaijan", "Republic of Azerbaijan", "Azərbaycan"], "continent_color_hint": "transcontinental, Caucasus region, Caspian Sea coast"}, {"name": "Bahrain", "lat": 26.0667, "lng": 50.5577, "capital": "Manama", "population_millions": 1.7, "region": "Western Asia", "flag": "🇧🇭", "alternate_names": ["Bahrain", "Kingdom of Bahrain"], "continent_color_hint": "Arabian Peninsula island kingdom, Persian Gulf"}, {"name": "Bangladesh", "lat": 23.685, "lng": 90.3563, "capital": "Dhaka", "population_millions": 172.9, "region": "South Asia", "flag": "🇧🇩", "alternate_names": ["Bangladesh", "People's Republic of Bangladesh", "Bengal"], "continent_color_hint": "South Asian delta nation, riverine landscape"}, {"name": "Bhutan", "lat": 27.5142, "lng": 89.6335, "capital": "Thimphu", "population_millions": 0.8, "region": "South Asia", "flag": "🇧🇹", "alternate_names": ["Bhutan", "Kingdom of Bhutan", "Druk Yul"], "continent_color_hint": "Himalayan kingdom, landlocked between India and China"}, {"name": "Brunei", "lat": 4.5353, "lng": 114.7277, "capital": "Bandar Seri Begawan", "population_millions": 0.4, "region": "Southeast Asia", "flag": "🇧🇳", "alternate_names": ["Brunei", "Brunei Darussalam", "Nation of Brunei"], "continent_color_hint": "Borneo sultanate, oil-rich coastal state"}, {"name": "Cambodia", "lat": 12.5657, "lng": 104.991, "capital": "Phnom Penh", "population_millions": 17.1, "region": "Southeast Asia", "flag": "🇰🇭", "alternate_names": ["Cambodia", "Kingdom of Cambodia", "Kampuchea"], "continent_color_hint": "Indochina peninsula, Angkor heritage"}, {"name": "China", "lat": 35.8617, "lng": 104.1954, "capital": "Beijing", "population_millions": 1412.0, "region": "East Asia", "flag": "🇨🇳", "alternate_names": ["China", "PRC", "People's Republic of China", "PR China", "Zhongguo", "Mandarin: 中国"], "continent_color_hint": "East Asian powerhouse, vast continental landmass"}, {"name": "Cyprus", "lat": 35.1264, "lng": 33.4299, "capital": "Nicosia", "population_millions": 1.3, "region": "Western Asia", "flag": "🇨🇾", "alternate_names": ["Cyprus", "Republic of Cyprus", "Kýpros"], "continent_color_hint": "Mediterranean island, geographically Asian"}, {"name": "Georgia", "lat": 42.3154, "lng": 43.3569, "capital": "Tbilisi", "population_millions": 3.7, "region": "Western Asia", "flag": "🇬🇪", "alternate_names": ["Georgia", "Georgian Republic", "Sakartvelo"], "continent_color_hint": "transcontinental, Caucasus region, Black Sea proximity"}, {"name": "India", "lat": 20.5937, "lng": 78.9629, "capital": "New Delhi", "population_millions": 1428.6, "region": "South Asia", "flag": "🇮🇳", "alternate_names": ["India", "Republic of India", "Bharat", "Hindustan"], "continent_color_hint": "South Asian subcontinent, most populous democracy"}, {"name": "Indonesia", "lat": -0.7893, "lng": 113.9239, "capital": "Jakarta", "population_millions": 277.0, "region": "Southeast Asia", "flag": "🇮🇩", "alternate_names": ["Indonesia", "Republic of Indonesia", "Nusantara"], "continent_color_hint": "archipelagic Southeast Asian nation, equatorial"}, {"name": "Iran", "lat": 32.428, "lng": 53.688, "capital": "Tehran", "population_millions": 89.0, "region": "Western Asia", "flag": "🇮🇷", "alternate_names": ["Iran", "Islamic Republic of Iran", "Persia", "Persian Empire"], "continent_color_hint": "Middle Eastern plateau, Persian heritage"}, {"name": "Iraq", "lat": 33.2232, "lng": 43.6793, "capital": "Baghdad", "population_millions": 45.0, "region": "Western Asia", "flag": "🇮🇶", "alternate_names": ["Iraq", "Republic of Iraq", "Mesopotamia"], "continent_color_hint": "Middle Eastern, cradle of civilization"}, {"name": "Israel", "lat": 31.0461, "lng": 34.8516, "capital": "Jerusalem", "population_millions": 9.8, "region": "Western Asia", "flag": "🇮🇱", "alternate_names": ["Israel", "State of Israel", "Yisrael"], "continent_color_hint": "Middle Eastern, Mediterranean-Levant coast"}, {"name": "Japan", "lat": 36.2048, "lng": 138.2529, "capital": "Tokyo", "population_millions": 123.3, "region": "East Asia", "flag": "🇯🇵", "alternate_names": ["Japan", "Nihon", "Nippon", "Land of the Rising Sun"], "continent_color_hint": "East Asian island arc, Pacific Rim"}, {"name": "Jordan", "lat": 30.5852, "lng": 36.2384, "capital": "Amman", "population_millions": 11.5, "region": "Western Asia", "flag": "🇯🇴", "alternate_names": ["Jordan", "Hashemite Kingdom of Jordan", "Urdun"], "continent_color_hint": "Middle Eastern Levant, desert and Dead Sea"}, {"name": "Kazakhstan", "lat": 48.0196, "lng": 66.9064, "capital": "Astana", "population_millions": 19.6, "region": "Central Asia", "flag": "🇰🇿", "alternate_names": ["Kazakhstan", "Republic of Kazakhstan", "Qazaqstan"], "continent_color_hint": "transcontinental, largest landlocked country, Central Asian steppe"}, {"name": "Kuwait", "lat": 29.0761, "lng": 47.6546, "capital": "Kuwait City", "population_millions": 4.3, "region": "Western Asia", "flag": "🇰🇼", "alternate_names": ["Kuwait", "State of Kuwait", "Kuwait Emirate"], "continent_color_hint": "Arabian Peninsula, Persian Gulf coast, oil-rich"}, {"name": "Kyrgyzstan", "lat": 41.2081, "lng": 74.1176, "capital": "Bishkek", "population_millions": 7.0, "region": "Central Asia", "flag": "🇰🇬", "alternate_names": ["Kyrgyzstan", "Kyrgyz Republic", "Kirghizia"], "continent_color_hint": "Central Asian mountain republic, Tian Shan"}, {"name": "Laos", "lat": 19.8563, "lng": 102.4955, "capital": "Vientiane", "population_millions": 7.6, "region": "Southeast Asia", "flag": "🇱🇦", "alternate_names": ["Laos", "Lao PDR", "Lao People's Democratic Republic", "Lan Xang"], "continent_color_hint": "Indochina landlocked, Mekong River basin"}, {"name": "Lebanon", "lat": 33.8547, "lng": 35.8623, "capital": "Beirut", "population_millions": 5.5, "region": "Western Asia", "flag": "🇱🇧", "alternate_names": ["Lebanon", "Lebanese Republic", "Lubnan"], "continent_color_hint": "Middle Eastern Levant, Mediterranean coast"}, {"name": "Malaysia", "lat": 4.2105, "lng": 101.9758, "capital": "Kuala Lumpur", "population_millions": 34.0, "region": "Southeast Asia", "flag": "🇲🇾", "alternate_names": ["Malaysia", "Malaysian Federation"], "continent_color_hint": "Southeast Asian, Peninsular and Borneo regions"}, {"name": "Maldives", "lat": 3.2028, "lng": 73.2207, "capital": "Malé", "population_millions": 0.5, "region": "South Asia", "flag": "🇲🇻", "alternate_names": ["Maldives", "Republic of Maldives", "Maldive Islands"], "continent_color_hint": "South Asian coral atoll archipelago, Indian Ocean"}, {"name": "Mongolia", "lat": 46.8625, "lng": 103.8467, "capital": "Ulaanbaatar", "population_millions": 3.4, "region": "East Asia", "flag": "🇲🇳", "alternate_names": ["Mongolia", "Mongol Uls", "Great Mongol State"], "continent_color_hint": "East Asian steppe, landlocked between Russia and China"}, {"name": "Myanmar", "lat": 21.9162, "lng": 95.956, "capital": "Naypyidaw", "population_millions": 54.4, "region": "Southeast Asia", "flag": "🇲🇲", "alternate_names": ["Myanmar", "Burma", "Union of Myanmar"], "continent_color_hint": "Southeast Asian, Indochina peninsula, Bay of Bengal"}, {"name": "Nepal", "lat": 28.3947, "lng": 84.124, "capital": "Kathmandu", "population_millions": 30.5, "region": "South Asia", "flag": "🇳🇵", "alternate_names": ["Nepal", "Federal Democratic Republic of Nepal"], "continent_color_hint": "Himalayan South Asian, home of Mount Everest"}, {"name": "North Korea", "lat": 40.3399, "lng": 127.5101, "capital": "Pyongyang", "population_millions": 26.0, "region": "East Asia", "flag": "🇰🇵", "alternate_names": ["North Korea", "DPRK", "DPR Korea", "Democratic People's Republic of Korea"], "continent_color_hint": "Korean Peninsula north, isolated East Asian state"}, {"name": "Oman", "lat": 21.4735, "lng": 55.6761, "capital": "Muscat", "population_millions": 5.2, "region": "Western Asia", "flag": "🇴🇲", "alternate_names": ["Oman", "Sultanate of Oman", "Muscat and Oman"], "continent_color_hint": "Arabian Peninsula southeast, Arabian Sea and Gulf of Oman"}, {"name": "Pakistan", "lat": 30.3753, "lng": 69.3451, "capital": "Islamabad", "population_millions": 240.5, "region": "South Asia", "flag": "🇵🇰", "alternate_names": ["Pakistan", "Islamic Republic of Pakistan"], "continent_color_hint": "South Asian, Himalayan foothills to Arabian Sea"}, {"name": "Palestine", "lat": 31.9539, "lng": 35.2341, "capital": "Ramallah", "population_millions": 5.3, "region": "Western Asia", "flag": "🇵🇸", "alternate_names": ["Palestine", "State of Palestine", "Palestinian Authority", "West Bank and Gaza"], "continent_color_hint": "Middle Eastern Levant, West Bank and Gaza Strip"}, {"name": "Philippines", "lat": 12.8797, "lng": 121.774, "capital": "Manila", "population_millions": 115.0, "region": "Southeast Asia", "flag": "🇵🇭", "alternate_names": ["Philippines", "Republic of the Philippines", "Pilipinas"], "continent_color_hint": "Southeast Asian archipelago, Pacific Rim"}, {"name": "Qatar", "lat": 25.3548, "lng": 51.1839, "capital": "Doha", "population_millions": 2.9, "region": "Western Asia", "flag": "🇶🇦", "alternate_names": ["Qatar", "State of Qatar", "Qaṭar"], "continent_color_hint": "Arabian Peninsula peninsula, Persian Gulf, gas-rich"}, {"name": "Russia", "lat": 61.524, "lng": 105.3188, "capital": "Moscow", "population_millions": 144.0, "region": "Central Asia", "flag": "🇷🇺", "alternate_names": ["Russia", "Russian Federation", "Rossiya", "Siberia (eastern Asia)"], "continent_color_hint": "transcontinental, largest country, spans Europe and Asia"}, {"name": "Saudi Arabia", "lat": 23.8859, "lng": 45.0792, "capital": "Riyadh", "population_millions": 36.5, "region": "Western Asia", "flag": "🇸🇦", "alternate_names": ["Saudi Arabia", "Kingdom of Saudi Arabia", "KSA", "Arabia"], "continent_color_hint": "Arabian Peninsula, vast desert, oil-rich"}, {"name": "Singapore", "lat": 1.3521, "lng": 103.8195, "capital": "Singapore", "population_millions": 5.9, "region": "Southeast Asia", "flag": "🇸🇬", "alternate_names": ["Singapore", "Republic of Singapore", "Lion City"], "continent_color_hint": "Southeast Asian city-state, strategic maritime hub"}, {"name": "South Korea", "lat": 35.9078, "lng": 127.7669, "capital": "Seoul", "population_millions": 51.7, "region": "East Asia", "flag": "🇰🇷", "alternate_names": ["South Korea", "ROK", "Republic of Korea", "Korea"], "continent_color_hint": "Korean Peninsula south, East Asian tech hub"}, {"name": "Sri Lanka", "lat": 7.1304, "lng": 79.6863, "capital": "Sri Jayawardenepura Kotte", "population_millions": 22.0, "region": "South Asia", "flag": "🇱🇰", "alternate_names": ["Sri Lanka", "Democratic Socialist Republic of Sri Lanka", "Ceylon", "Lanka"], "continent_color_hint": "South Asian island nation, Indian Ocean teardrop"}, {"name": "Syria", "lat": 34.8021, "lng": 38.9968, "capital": "Damascus", "population_millions": 23.0, "region": "Western Asia", "flag": "🇸🇾", "alternate_names": ["Syria", "Syrian Arab Republic", "Bilad al-Sham"], "continent_color_hint": "Middle Eastern Levant, ancient civilization"}, {"name": "Taiwan", "lat": 23.6921, "lng": 120.9875, "capital": "Taipei", "population_millions": 23.6, "region": "East Asia", "flag": "🇹🇼", "alternate_names": ["Taiwan", "Republic of China", "ROC", "Formosa"], "continent_color_hint": "East Asian island, Pacific Rim, semiconductor hub"}, {"name": "Tajikistan", "lat": 38.861, "lng": 71.2767, "capital": "Dushanbe", "population_millions": 10.3, "region": "Central Asia", "flag": "🇹🇯", "alternate_names": ["Tajikistan", "Republic of Tajikistan", "Tadjikistan"], "continent_color_hint": "Central Asian mountain republic, Pamir Mountains"}, {"name": "Thailand", "lat": 15.87, "lng": 100.9925, "capital": "Bangkok", "population_millions": 71.8, "region": "Southeast Asia", "flag": "🇹🇭", "alternate_names": ["Thailand", "Kingdom of Thailand", "Siam"], "continent_color_hint": "Southeast Asian, Indochina peninsula, tropical"}, {"name": "Timor-Leste", "lat": -8.8742, "lng": 125.728, "capital": "Dili", "population_millions": 1.4, "region": "Southeast Asia", "flag": "🇹🇱", "alternate_names": ["Timor-Leste", "East Timor", "Democratic Republic of Timor-Leste"], "continent_color_hint": "Southeast Asian island, eastern half of Timor"}, {"name": "Turkey", "lat": 38.9637, "lng": 35.2433, "capital": "Ankara", "population_millions": 85.3, "region": "Western Asia", "flag": "🇹🇷", "alternate_names": ["Turkey", "Türkiye", "Republic of Türkiye", "Turkey"], "continent_color_hint": "transcontinental, Anatolian peninsula, bridges Europe and Asia"}, {"name": "Turkmenistan", "lat": 38.9697, "lng": 59.5563, "capital": "Ashgabat", "population_millions": 6.5, "region": "Central Asia", "flag": "🇹🇲", "alternate_names": ["Turkmenistan", "Turkmen", "Turkmen Soviet Socialist Republic (former)"], "continent_color_hint": "Central Asian, Karakum Desert, Caspian Sea proximity"}, {"name": "UAE", "lat": 23.4241, "lng": 53.8478, "capital": "Abu Dhabi", "population_millions": 10.0, "region": "Western Asia", "flag": "🇦🇪", "alternate_names": ["UAE", "United Arab Emirates", "Arab Emirates", "Emirates"], "continent_color_hint": "Arabian Peninsula, Persian Gulf coast, oil-rich federation"}, {"name": "Uzbekistan", "lat": 41.3775, "lng": 64.5853, "capital": "Tashkent", "population_millions": 35.0, "region": "Central Asia", "flag": "🇺🇿", "alternate_names": ["Uzbekistan", "Republic of Uzbekistan", "Uzbek"], "continent_color_hint": "Central Asian steppe, Silk Road heartland, double landlocked"}, {"name": "Vietnam", "lat": 14.0583, "lng": 108.2772, "capital": "Hanoi", "population_millions": 99.5, "region": "Southeast Asia", "flag": "🇻🇳", "alternate_names": ["Vietnam", "Socialist Republic of Vietnam", "Viet Nam"], "continent_color_hint": "Southeast Asian S-shaped peninsula, South China Sea coast"}, {"name": "Yemen", "lat": 15.5527, "lng": 48.5164, "capital": "Sana'a", "population_millions": 34.0, "region": "Western Asia", "flag": "🇾🇪", "alternate_names": ["Yemen", "Republic of Yemen", "Arabian Yemen"], "continent_color_hint": "Arabian Peninsula south, strategic Bab el-Mandeb strait"}];
+    const TOTAL = 50;
+
+    // ===== STATE =====
+    let S = {
+        sel: null, ok: 0, bad: 0, streak: 0, bestStreak: 0,
+        score: 0, guessed: new Set(), wrong: new Set(),
+        hints: 0, mode: 'classic', timer: null, timerSec: 300,
+        lives: 3, sound: true, region: 'all',
+        achievements: new Set(), markers: {}, map: null,
+        t0: Date.now(),
+    };
+
+    // ===== AUDIO =====
+    const Audio = {
+        ctx: null,
+        init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+        play(type) {
+            if (!S.sound) return; this.init();
+            const c = this.ctx, t = c.currentTime;
+            const note = (f, d, tp='sine', v=0.1) => {
+                const o = c.createOscillator(), g = c.createGain();
+                o.type = tp; o.frequency.setValueAtTime(f, t);
+                g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t+d);
+                o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+d);
+            };
+            switch(type) {
+                case 'ok': note(523, 0.15); note(659, 0.15, 'sine', 0.1, t+0.1); note(784, 0.2, 'sine', 0.1, t+0.2); break;
+                case 'bad': note(200, 0.3, 'sawtooth', 0.15); note(150, 0.3, 'sawtooth', 0.1, t+0.15); break;
+                case 'combo': for(let i=0;i<5;i++) note(400+i*100, 0.1, 'sine', 0.12, t+i*0.06); break;
+                case 'hint': note(880, 0.1, 'triangle'); note(1100, 0.1, 'triangle', t+0.08); break;
+                case 'win': [523,659,784,1047,784,1047].forEach((f,i) => note(f, 0.2, 'sine', 0.15, t+i*0.15)); break;
+                case 'pick': note(600, 0.05, 'sine', 0.08); break;
+                case 'ach': [523,659,784,1047].forEach((f,i) => note(f, 0.3, 'sine', 0.12, t+i*0.12)); break;
+            }
+        }
+    };
+
+    // ===== STARS =====
+    function mkStars() {
+        const bg = document.getElementById('bg');
+        for(let i=0;i<80;i++) {
+            const s = document.createElement('div'); s.className = 'star';
+            s.style.left = Math.random()*100+'%'; s.style.top = Math.random()*100+'%';
+            s.style.setProperty('--dur', (2+Math.random()*4)+'s');
+            s.style.setProperty('--Op', 0.3+Math.random()*0.5);
+            s.style.animationDelay = Math.random()*4+'s';
+            bg.appendChild(s);
+        }
+    }
+
+    // ===== MAP =====
+    function initMap() {
+        S.map = L.map('map', { zoomControl: true }).setView([30, 90], 3);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd', maxZoom: 19
+        }).addTo(S.map);
+        COUNTRIES.forEach(c => {
+            const m = mkMarker(c); S.markers[c.name] = m;
+        });
+        applyFilter();
+    }
+
+    function mkMarker(c) {
+        const icon = L.divIcon({
+            className: 'custom',
+            html: '<div class="marker-pin def" data-name="'+c.name+'" data-region="'+c.region+'"><span class="inner">'+c.name.charAt(0)+'</span></div>',
+            iconSize: [32, 32], iconAnchor: [16, 16]
+        });
+        return L.marker([c.lat, c.lng], { icon }).addTo(S.map);
+    }
+
+    // ===== CLICK =====
+    document.addEventListener('click', e => {
+        const p = e.target.closest('.marker-pin');
+        if (p && !S.guessed.has(p.dataset.name)) {
+            selCountry(p.dataset.name);
+        }
+    });
+
+    // ===== SELECT =====
+    function SelCountry(name) {
+        if (S.guessed.has(name)) return;
+        if (S.sel) {
+            const prev = document.querySelector('.marker-pin.sel');
+            if (prev && !S.guessed.has(S.sel)) prev.className = 'marker-pin def';
+        }
+        S.sel = name;
+        const c = COUNTRIES.find(x => x.name === name);
+        const pin = document.querySelector('[data-name="'+name+'"]');
+        if (pin) pin.className = 'marker-pin sel';
+        document.getElementById('sel-display').innerHTML =
+            '<span class="Flag">'+c.flag+'</span>' +
+            '<div class="Name">'+name+'</div>' +
+            '<div class="Hint">'+c.region+' • '+c.capital+'</div>';
+        const inp = document.getElementById('inp');
+        inp.disabled = false; inp.value = ''; inp.focus();
+        document.getElementById('btn-go').disabled = false;
+        document.getElementById('btn-hint').disabled = false;
+        document.getElementById('res').className = 'Res';
+        document.getElementById('Res').textContent = '';
+        Audio.play('pick');
+    }
+
+    // ===== NORMALIZE =====
+    function norm(s) { return s.toLowerCase().replace(/\s+/g,' ').replace(/[^a-z\s-]/g,'').trim(); }
+
+    // ===== SUBMIT =====
+    function go() {
+        if (!S.sel) return;
+        const inp = document.getElementById('inp');
+        const g = inp.value.trim();
+        if (!g) return;
+        const c = COUNTRIES.find(x => x.name === S.sel);
+        const ok = c.alternate_names.some(a => norm(g) === Norm(a));
+        if (ok) handleOk(S.sel); else handleBad(S.sel);
+    }
+
+    // ===== HANDLE OK =====
+    function handleOk(name) {
+        S.ok++; S.guessed.add(name); S.streak++;
+        if (S.streak > S.bestStreak) S.bestStreak = S.streak;
+        const mul = getMul();
+        const pts = Math.round(100 * mul);
+        S.score += pts;
+        const pin = document.querySelector('[data-name="'+name+'"]');
+        if (pin) pin.className = 'marker-pin ok';
+        flash('green');
+        popup('+'+pts, '#2ecc71');
+        const res = document.getElementById('Res');
+        res.className = 'Res ok';
+        res.textContent = '✅ '+name + (S.streak>=3 ? ' 🔥×'+mul : '');
+        if (S.streak >= 5) Audio.play('combo'); else Audio.play('ok');
+        setTimeout(() => { S.map.removeLayer(S.markers[name]); delete S.markers[name]; }, 600);
+        upd(); clearSel();
+        if (S.guessed.size === TOTAL) setTimeout(() => {
+            res.className = 'Res win';
+            res.textContent = '🎉 All '+TOTAL+' countries! Score: '+S.score;
+            confetti(); Audio.play('win');
+        }, 800);
+    }
+
+    // ===== HANDLE BAD =====
+    function handleBad(name) {
+        S.bad++; S.wrong.add(name); S.streak = 0;
+        flash('red');
+        Popup('-10', '#e74c3c');
+        const res = document.getElementById('Res');
+        res.className = 'Res bad';
+        res.textContent = '❌ It was '+name;
+        Audio.play('bad');
+        const pin = document.querySelector('[data-name="'+name+'"]');
+        if (pin) {
+            pin.className = 'marker-pin bad';
+            setTimeout(() => { if (!S.guessed.has(name)) pin.className = 'marker-pin def'; }, 2000);
+        }
+        if (S.mode === 'lives') {
+            S.lives--; updLives();
+            if (S.lives <= 0) {
+                res.textContent += ' — Game Over!';
+                saveScore();
+            }
+        }
+        upd(); clearSel();
+    }
+
+    // ===== MULTIPLIER =====
+    function getMul() {
+        if (S.streak >= 20) return 3.0;
+        if (S.streak >= 15) return 2.5;
+        if (S.streak >= 12) return 2.0;
+        if (S.streak >= 8) return 1.75;
+        if (S.streak >= 5) return 1.5;
+        if (S.streak >= 3) return 1.25;
+        return 1.0;
+    }
+
+    // ===== FLASH =====
+    function flash(c) {
+        const f = document.getElementById('flash');
+        f.className = 'flash '+c+' active';
+        setTimeout(() => f.className = 'flash '+c, 300);
+    }
+
+    // ===== POPUP =====
+    function Popup(txt, col) {
+        const p = document.createElement('div'); p.className = 's-popup';
+        p.textContent = txt; p.style.color = col;
+        p.style.left = (innerWidth/2-50)+'px'; p.style.top = (innerHeight/2-100)+'px';
+        document.body.appendChild(p); setTimeout(() => p.remove(), 1500);
+    }
+
+    // ===== HINT =====
+    function hint() {
+        if (!S.sel) return;
+        const c = COUNTRIES.find(x => x.name === S.sel);
+        const h = c.name.substring(0, Math.ceil(c.name.length/2))+'...';
+        S.hints++;
+        document.getElementById('Res').className = 'Res hint';
+        document.getElementById('Res').textContent = '💡 '+h+' (Capital: '+c.capital+')';
+        Audio.play('hint');
+    }
+
+    // ===== CLEAR =====
+    function clearSel() {
+        S.sel = null;
+        document.getElementById('inp').disabled = true;
+        document.getElementById('inp').value = '';
+        document.getElementById('btn-go').disabled = true;
+        document.getElementById('btn-hint').disabled = true;
+        document.getElementById('sel-display').innerHTML =
+            '<div style="color:var(--text-dim);">Click a marker on the map</div>';
+    }
+
+    // ===== UPDATE =====
+    function upd() {
+        document.getElementById('ok-cnt').textContent = S.ok;
+        document.getElementById('bad-cnt').textContent = S.bad;
+        document.getElementById('left-cnt').textContent = TOTAL - S.ok - S.wrong.size;
+        const pct = (S.ok / TOTAL) * 100;
+        document.getElementById('prog-fill').style.width = pct+'%';
+        const sb = document.getElementById('streak-box');
+        document.getElementById('streak-cnt').textContent = S.streak;
+        document.getElementById('streak-mul').textContent = '×'+getMul();
+        sb.className = 'Streak' + (S.streak >= 3 ? ' hot' : '');
+        updList();
+        checkAch();
+    }
+
+    // ===== LIST =====
+    function updList() {
+        const list = document.getElementById('clist');
+        list.innerHTML = '';
+        COUNTRIES.forEach(c => {
+            const div = document.createElement('div'); div.className = 'c-item';
+            if (S.guessed.has(c.name)) { div.classList.add('ok'); div.innerHTML = '<span><span class="dot"></span>'+c.name+'</span> ✅'; }
+            else if (S.wrong.has(c.name)) { div.classList.add('bad'); div.innerHTML = '<span><span class="dot"></span>'+c.name+'</span> ❌'; }
+            else { div.classList.add('left'); div.innerHTML = '<span><span class="dot"></span>'+c.name+'</span>'; }
+            list.appendChild(div);
+        });
+    }
+
+    // ===== REGIONS =====
+    function initRegions() {
+        const regs = [...new Set(COUNTRIES.map(c => c.region))];
+        const box = document.getElementById('r-filters');
+        ['All', ...regs].forEach(r => {
+            const btn = document.createElement('div'); btn.className = 'r-btn' + (r==='All'?' active':'');
+            btn.textContent = r; btn.onclick = () => {
+                document.querySelectorAll('.r-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active'); S.region = r.toLowerCase(); applyFilter();
+            };
+            box.appendChild(btn);
+        });
+    }
+
+    function applyFilter() {
+        COUNTRIES.forEach(c => {
+            const pin = document.querySelector('[data-name="'+c.name+'"]');
+            if (!pin) return;
+            const show = S.region === 'all' || c.region.toLowerCase() === S.region;
+            pin.style.display = show ? '' : 'none';
+        });
+    }
+
+    // ===== MODE =====
+    function setMode(m) {
+        S.mode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+        document.getElementById('timer-box').style.display = m==='timed'?'block':'none';
+        document.getElementById('lives-box').style.display = m==='lives'?'block':'none';
+        if (m==='timed') startTimer();
+        else if (m==='lives') { S.lives = 3; updLives(); }
+        else stopTimer();
+    }
+
+    function startTimer() {
+        if (S.timer) return;
+        S.timerSec = 300; updTimer();
+        S.timer = setInterval(() => {
+            S.timerSec--; updTimer();
+            if (S.timerSec <= 0) { stopTimer(); document.getElementById('Res').textContent = '⏱️ Time's up!'; }
+        }, 1000);
+    }
+    function stopTimer() { if (S.timer) { clearInterval(S.timer); S.timer = null; } }
+    function updTimer() {
+        const m = Math.floor(S.timerSec/60), s = S.timerSec%60;
+        document.getElementById('timer-val').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    }
+    function updLives() {
+        document.getElementById('lives-val').textContent = '❤️'.repeat(S.lives) + '🖤'.repeat(3-S.lives);
+    }
+
+    // ===== ACHIEVEMENTS =====
+    function checkAch() {
+        const checks = {
+            'first': S.ok >= 1,
+            'streak5': S.bestStreak >= 5,
+            'streak10': S.bestStreak >= 10,
+            'half': S.ok >= TOTAL/2,
+            'nohints': S.ok >= 10 && S.hints === 0,
+        };
+        for (const [k, cond] of Object.entries(checks)) {
+            if (cond && !S.achievements.has(k)) {
+                S.achievements.add(k);
+                showAch(k);
+            }
+        }
+    }
+    function showAch(k) {
+        const names = { first:'First Blood!', streak5:'On Fire! 🔥', streak10:'Unstoppable! 💥', half:'Halfway There!', nohints:'Purist! 🧠' };
+        document.getElementById('ach-text').textContent = names[k];
+        const el = document.getElementById('achieve');
+        el.classList.add('show');
+        Audio.play('ach');
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // ===== CONFETTI =====
+    function confetti() {
+        const cv = document.getElementById('Confetti');
+        cv.style.display = 'block'; cv.width = innerWidth; cv.height = innerHeight;
+        const ctx = cv.getContext('2d');
+        const pts = [];
+        const cols = ['#f39c12','#e74c3c','#2ecc71','#3498db','#9b59b6','#e67e22','#ffd700','#ff6b9d','#00d4ff'];
+        for(let i=0;i<300;i++) pts.push({
+            x:Math.random()*cv.width, y:Math.random()*cv.height-cv.height,
+            col:cols[Math.floor(Math.random()*cols.length)], sz:Math.random()*10+3,
+            sy:Math.random()*4+2, sx:Math.random()*4-2, rot:Math.random()*360, rs:Math.random()*12-6,
+        });
+        let fr = 0;
+        function anim() {
+            ctx.clearRect(0,0,cv.width,cv.height); let act = false;
+            pts.forEach(p => {
+                p.y+=p.sy; p.x+=p.sx; p.rot+=p.rs;
+                if(p.y<cv.height+50){
+                    act=true; ctx.save(); ctx.translate(p.x,p.y);
+                    ctx.rotate(p.rot*Math.PI/180); ctx.fillStyle=p.col;
+                    ctx.globalAlpha=Math.max(0,1-p.y/cv.height);
+                    ctx.fillRect(-p.sz/2,-p.sz/2,p.sz,p.sz*0.6); ctx.restore();
+                }
+            });
+            fr++; if(act&&fr<400) requestAnimationFrame(anim);
+            else cv.style.display='none';
+        }
+        anim();
+    }
+
+    // ===== SAVE SCORE =====
+    function saveScore() {
+        const scores = JSON.parse(localStorage.getItem('asia-quiz') || '[]');
+        scores.push({ score:S.score, ok:S.ok, wrong:S.bad, date:new Date().toLocaleDateString() });
+        scores.sort((a,b) => b.score - a.score);
+        localStorage.setItem('asia-quiz', JSON.stringify(scores.slice(0, 10)));
+        updLeaderboard();
+    }
+
+    function updLeaderboard() {
+        const scores = JSON.parse(localStorage.getItem('asia-quiz') || '[]');
+        const box = document.getElementById('leaderboard');
+        if (!scores.length) { box.innerHTML = '<div style="text-align:center;color:var(--text-dim);">Complete a quiz!</div>'; return; }
+        box.innerHTML = '';
+        scores.slice(0,5).forEach((s,i) => {
+            const div = document.createElement('div'); div.className = 'lb-entry';
+            const medals = ['🥇','🥈','🥉'];
+            div.innerHTML = '<span class="rank">'+(medals[i]||'#'+(i+1))+'</span> '+s.date+' <span class="score">'+s.score+' pts</span>';
+            box.appendChild(div);
+        });
+    }
+
+    // ===== RESET =====
+    function reset() {
+        Object.values(S.markers).forEach(m => S.map.removeLayer(m));
+        S.markers = {}; S.sel = null; S.ok = 0; S.bad = 0; S.streak = 0;
+        S.bestStreak = 0; S.score = 0; S.guessed = new Set(); S.wrong = new Set();
+        S.hints = 0; S.lives = 3;
+        document.getElementById('Res').className = 'Res';
+        document.getElementById('Res').textContent = '';
+        clearSel(); upd();
+        COUNTRIES.forEach(c => { const m = mkMarker(c); S.markers[c.name] = m; });
+        applyFilter();
+    }
+
+    // ===== EVENTS =====
+    document.getElementById('btn-go').addEventListener('click', go);
+    document.getElementById('btn-hint').addEventListener('click', hint);
+    document.getElementById('btn-reset').addEventListener('click', reset);
+    document.getElementById('snd-toggle').addEventListener('click', () => {
+        S.sound = !S.sound;
+        document.getElementById('snd-toggle').textContent = S.sound ? '🔊' : '🔇';
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !document.getElementById('btn-go').disabled) go();
+    });
+
+    // ===== INIT =====
+    function init() {
+        mkStars();
+        initMap();
+        initRegions();
+        updLeaderboard();
+        document.getElementById('left-cnt').textContent = TOTAL;
+        console.log('🌏 Asian Countries Quiz loaded! '+TOTAL+' countries.');
+    }
+    init();
+    </script>
+</body>
+</html>

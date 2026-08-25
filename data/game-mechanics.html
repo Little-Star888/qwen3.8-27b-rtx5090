@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geography Quiz - Advanced Game Mechanics</title>
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #252540;
+    --accent: #00d4ff;
+    --accent2: #7b2ff7;
+    --correct: #00e676;
+    --wrong: #ff1744;
+    --gold: #ffd700;
+    --text: #e8e8f0;
+    --text-dim: #8888a0;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== SCREEN SHAKE ANIMATION ===== */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10% { transform: translateX(-8px) rotate(-0.5deg); }
+    20% { transform: translateX(8px) rotate(0.5deg); }
+    30% { transform: translateX(-6px) rotate(-0.3deg); }
+    40% { transform: translateX(6px) rotate(0.3deg); }
+    50% { transform: translateX(-4px); }
+    60% { transform: translateX(4px); }
+    70% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
+    90% { transform: translateX(-1px); }
+  }
+
+  .shake {
+    animation: shake 0.5s ease-out;
+  }
+
+  /* ===== PARTICLE EFFECTS ===== */
+  .particle-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particleFly 1s ease-out forwards;
+  }
+
+  @keyframes particleFly {
+    0% {
+      opacity: 1;
+      transform: translate(0, 0) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--tx), var(--ty)) scale(0);
+    }
+  }
+
+  /* ===== LAYOUT ===== */
+  .app {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    text-align: center;
+    padding: 30px 0 20px;
+  }
+
+  .header h1 {
+    font-size: 2.2rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+  }
+
+  .header .subtitle {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+  }
+
+  /* ===== STATS BAR ===== */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .stat-card .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .stat-card .value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    transition: color 0.3s;
+  }
+
+  .stat-card.score .value { color: var(--gold); }
+  .stat-card.streak .value { color: var(--accent); }
+  .stat-card.multiplier .value { color: var(--accent2); }
+  .stat-card.lives .value { color: var(--wrong); }
+  .stat-card.timer .value { color: var(--correct); }
+
+  /* ===== STREAK FIRE ===== */
+  .streak-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 1.2rem;
+  }
+
+  .fire-emoji {
+    display: inline-block;
+    animation: firePulse 0.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes firePulse {
+    from { transform: scale(1); filter: brightness(1); }
+    to { transform: scale(1.2); filter: brightness(1.3); }
+  }
+
+  /* ===== MULTIPLIER BADGE ===== */
+  .multiplier-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 1rem;
+    animation: multiplierGlow 1.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes multiplierGlow {
+    from { box-shadow: 0 0 8px rgba(123,47,247,0.4); }
+    to { box-shadow: 0 0 20px rgba(0,212,255,0.6); }
+  }
+
+  /* ===== QUESTION CARD ===== */
+  .question-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .question-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .question-number {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .region-badge {
+    display: inline-block;
+    background: var(--surface2);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    border: 1px solid rgba(0,212,255,0.2);
+  }
+
+  .region-badge .difficulty {
+    margin-left: 6px;
+    font-size: 0.65rem;
+    color: var(--gold);
+  }
+
+  .question-text {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+
+  /* ===== ANSWER OPTIONS ===== */
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .option-btn {
+    background: var(--surface2);
+    border: 2px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    color: var(--text);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .option-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,212,255,0.15);
+  }
+
+  .option-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .option-btn.correct {
+    border-color: var(--correct) !important;
+    background: rgba(0,230,118,0.15) !important;
+    animation: correctPulse 0.5s ease-out;
+  }
+
+  .option-btn.wrong {
+    border-color: var(--wrong) !important;
+    background: rgba(255,23,68,0.15) !important;
+  }
+
+  .option-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  @keyframes correctPulse {
+    0% { box-shadow: 0 0 0 0 rgba(0,230,118,0.4); }
+    100% { box-shadow: 0 0 0 20px rgba(0,230,118,0); }
+  }
+
+  /* ===== SCORE POPUP ===== */
+  .score-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-size: 3rem;
+    font-weight: 900;
+    pointer-events: none;
+    z-index: 2000;
+    animation: scorePop 1s ease-out forwards;
+  }
+
+  .score-popup.positive { color: var(--correct); }
+  .score-popup.negative { color: var(--wrong); }
+
+  @keyframes scorePop {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    30% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    60% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -80%) scale(0.8); opacity: 0; }
+  }
+
+  /* ===== ACHIEVEMENT NOTIFICATION ===== */
+  .achievement-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .achievement {
+    background: linear-gradient(135deg, var(--surface), var(--surface2));
+    border: 1px solid var(--gold);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    min-width: 300px;
+    box-shadow: 0 8px 30px rgba(255,215,0,0.2);
+    animation: slideIn 0.5s ease-out, slideOut 0.5s ease-in 3.5s forwards;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .achievement .icon {
+    font-size: 2rem;
+  }
+
+  .achievement .info .title {
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 0.9rem;
+  }
+
+  .achievement .info .desc {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(120%); opacity: 0; }
+  }
+
+  /* ===== LEADERBOARD ===== */
+  .leaderboard {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-top: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .leaderboard h2 {
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .leaderboard-table th {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--surface2);
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .leaderboard-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 0.9rem;
+  }
+
+  .leaderboard-table tr:hover td {
+    background: var(--surface2);
+  }
+
+  .rank-1 { color: var(--gold); }
+  .rank-2 { color: #c0c0c0; }
+  .rank-3 { color: #cd7f32; }
+
+  /* ===== ACHIEVEMENTS PANEL ===== */
+  .achievements-panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-top: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .achievements-panel h2 {
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .achievement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .achievement-card {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: all 0.3s;
+  }
+
+  .achievement-card.unlocked {
+    border-color: var(--gold);
+    background: rgba(255,215,0,0.05);
+  }
+
+  .achievement-card.locked {
+    opacity: 0.4;
+    filter: grayscale(1);
+  }
+
+  .achievement-card .ach-icon {
+    font-size: 1.8rem;
+  }
+
+  .achievement-card .ach-info .ach-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  .achievement-card .ach-info .ach-desc {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* ===== CONTROLS ===== */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px 24px;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,212,255,0.3);
+  }
+
+  .btn:active { transform: translateY(0); }
+
+  .btn.secondary {
+    background: var(--surface2);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .btn.secondary:hover {
+    background: var(--surface);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  }
+
+  .toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .toggle-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--surface2);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .toggle.active {
+    background: var(--accent);
+  }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.3s;
+  }
+
+  .toggle.active::after {
+    transform: translateX(20px);
+  }
+
+  /* ===== GAME OVER OVERLAY ===== */
+  .game-over-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(15,15,26,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000;
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .game-over-card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+    max-width: 450px;
+    width: 90%;
+    border: 1px solid rgba(255,255,255,0.1);
+    animation: scaleIn 0.5s ease-out;
+  }
+
+  @keyframes scaleIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .game-over-card h2 {
+    font-size: 2rem;
+    margin-bottom: 8px;
+  }
+
+  .game-over-card .final-score {
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--gold);
+    margin: 16px 0;
+  }
+
+  .game-over-card .stats-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .game-over-card .stat-item {
+    background: var(--surface2);
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .game-over-card .stat-item .stat-val {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .game-over-card .stat-item .stat-lbl {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===== PROGRESS BAR ===== */
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.5s ease-out;
+  }
+
+  /* ===== TIMER BAR ===== */
+  .timer-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .timer-fill {
+    height: 100%;
+    background: var(--correct);
+    border-radius: 3px;
+    transition: width 0.1s linear, background 0.3s;
+  }
+
+  .timer-fill.warning { background: #ff9800; }
+  .timer-fill.danger { background: var(--wrong); }
+
+  /* ===== NAME INPUT ===== */
+  .name-input-group {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0;
+  }
+
+  .name-input-group input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+
+  .name-input-group input:focus {
+    border-color: var(--accent);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 600px) {
+    .options { grid-template-columns: 1fr; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .header h1 { font-size: 1.6rem; }
+    .achievement { min-width: 260px; }
+  }
+
+  /* ===== SCORE ROLLING ANIMATION ===== */
+  .score-rolling {
+    animation: scoreRoll 0.6s ease-out;
+  }
+
+  @keyframes scoreRoll {
+    0% { transform: translateY(-10px); opacity: 0; }
+    60% { transform: translateY(2px); }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  /* ===== COMBO INDICATOR ===== */
+  .combo-ring {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 3px solid var(--accent2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1rem;
+    position: relative;
+  }
+
+  .combo-ring::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    animation: comboRingPulse 1s ease-in-out infinite;
+  }
+
+  @keyframes comboRingPulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.15); opacity: 0; }
+  }
+
+  /* ===== SOUND TOGGLE ===== */
+  .sound-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+    z-index: 100;
+    transition: all 0.2s;
+  }
+
+  .sound-toggle:hover {
+    background: var(--surface2);
+    transform: scale(1.1);
+  }
+
+  /* ===== HIDDEN ===== */
+  .hidden { display: none !important; }
+
+  /* ===== WELCOME SCREEN ===== */
+  .welcome-screen {
+    text-align: center;
+    padding: 60px 20px;
+  }
+
+  .welcome-screen h1 {
+    font-size: 2.5rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+
+  .welcome-screen p {
+    color: var(--text-dim);
+    max-width: 500px;
+    margin: 0 auto 30px;
+    line-height: 1.6;
+  }
+
+  .feature-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 30px 0;
+    text-align: left;
+  }
+
+  .feature-item {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+  }
+
+  .feature-item .feat-icon {
+    font-size: 1.3rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- WELCOME SCREEN -->
+  <div id="welcomeScreen" class="welcome-screen">
+    <h1>🌍 Geography Quiz</h1>
+    <p>Test your knowledge of world geography with an advanced scoring system featuring combos, streaks, achievements, and more!</p>
+
+    <div class="feature-list">
+      <div class="feature-item"><span class="feat-icon">🔥</span> Streak Multipliers</div>
+      <div class="feature-item"><span class="feat-icon">⚡</span> Time Bonus</div>
+      <div class="feature-item"><span class="feat-icon">❤️</span> Lives System</div>
+      <div class="feature-item"><span class="feat-icon">🏆</span> Achievements</div>
+      <div class="feature-item"><span class="feat-icon">🌐</span> Region Bonuses</div>
+      <div class="feature-item"><span class="feat-icon">🎵</span> Sound Effects</div>
+      <div class="feature-item"><span class="feat-icon">✨</span> Particle Effects</div>
+      <div class="feature-item"><span class="feat-icon">📊</span> Leaderboard</div>
+    </div>
+
+    <div class="name-input-group" style="max-width: 350px; margin: 0 auto 20px;">
+      <input type="text" id="playerName" placeholder="Enter your name..." maxlength="20">
+    </div>
+
+    <button class="btn" onclick="startGame()" style="font-size: 1.1rem; padding: 14px 40px;">
+      Start Game
+    </button>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="hidden">
+    <div class="header">
+      <h1>🌍 Geography Quiz</h1>
+      <div class="subtitle" id="subtitle">Question 1 of 10</div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-card score">
+        <div class="label">Score</div>
+        <div class="value" id="scoreDisplay">0</div>
+      </div>
+      <div class="stat-card streak">
+        <div class="label">Streak</div>
+        <div class="value" id="streakDisplay">0</div>
+      </div>
+      <div class="stat-card multiplier">
+        <div class="label">Multiplier</div>
+        <div class="value" id="multiplierDisplay">1x</div>
+      </div>
+      <div class="stat-card lives" id="livesCard">
+        <div class="label">Lives</div>
+        <div class="value" id="livesDisplay">❤️❤️❤️</div>
+      </div>
+      <div class="stat-card timer">
+        <div class="label">Time</div>
+        <div class="value" id="timerDisplay">15</div>
+      </div>
+    </div>
+
+    <div class="question-card" id="questionCard">
+      <div class="question-number" id="questionNumber">Question 1</div>
+      <div class="region-badge" id="regionBadge">
+        <span id="regionName">Europe</span>
+        <span class="difficulty" id="regionDifficulty">★ Easy</span>
+      </div>
+      <div class="timer-bar">
+        <div class="timer-fill" id="timerFill" style="width: 100%"></div>
+      </div>
+      <div class="question-text" id="questionText">What is the capital of France?</div>
+      <div class="options" id="options"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn secondary" onclick="showLeaderboard()">🏆 Leaderboard</button>
+      <div class="toggle-group">
+        <span class="toggle-label">Lives Mode</span>
+        <div class="toggle" id="livesToggle" onclick="toggleLivesMode()"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Achievement Container -->
+<div class="achievement-container" id="achievementContainer"></div>
+
+<!-- Particle Container -->
+<div class="particle-container" id="particleContainer"></div>
+
+<!-- Sound Toggle -->
+<div class="sound-toggle" id="soundToggle" onclick="toggleSound()" title="Toggle Sound">🔊</div>
+
+<script>
+// ===== AUDIO ENGINE (Web Audio API) =====
+class AudioEngine {
+  constructor() {
+    this.ctx = null;
+    this.enabled = true;
+  }
+
+  init() {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+
+  playTone(freq, duration, type = 'sine', volume = 0.3, delay = 0) {
+    if (!this.enabled || !this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+    gain.gain.setValueAtTime(volume, this.ctx.currentTime + delay);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + delay + duration);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(this.ctx.currentTime + delay);
+    osc.stop(this.ctx.currentTime + delay + duration);
+  }
+
+  correctBeep() {
+    this.playTone(880, 0.15, 'sine', 0.3);
+    this.playTone(1100, 0.15, 'sine', 0.2, 0.08);
+  }
+
+  wrongBuzz() {
+    this.playTone(150, 0.4, 'sawtooth', 0.25);
+    this.playTone(120, 0.5, 'square', 0.15, 0.1);
+  }
+
+  comboChime() {
+    this.playTone(523, 0.12, 'sine', 0.25);
+    this.playTone(659, 0.12, 'sine', 0.25, 0.08);
+    this.playTone(784, 0.15, 'sine', 0.3, 0.16);
+  }
+
+  victoryFanfare() {
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((note, i) => {
+      this.playTone(note, 0.3, 'sine', 0.25, i * 0.15);
+    });
+    this.playTone(1047, 0.6, 'sine', 0.3, 0.6);
+  }
+
+  achievementUnlock() {
+    this.playTone(880, 0.1, 'sine', 0.3);
+    this.playTone(1100, 0.1, 'sine', 0.25, 0.1);
+    this.playTone(1320, 0.1, 'sine', 0.25, 0.2);
+    this.playTone(1540, 0.3, 'sine', 0.3, 0.3);
+  }
+
+  toggle() {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+}
+
+const audio = new AudioEngine();
+
+// ===== QUESTION DATABASE =====
+const questions = [
+  // Europe - Easy
+  { q: "What is the capital of France?", options: ["Paris", "London", "Berlin", "Madrid"], correct: 0, region: "Europe", difficulty: 1 },
+  { q: "Which European river flows through Vienna?", options: ["Danube", "Thames", "Seine", "Rhine"], correct: 0, region: "Europe", difficulty: 1 },
+  { q: "What is the largest country in Europe by area?", options: ["Russia", "Ukraine", "France", "Spain"], correct: 0, region: "Europe", difficulty: 1 },
+  { q: "Which mountain range separates Europe from Asia?", options: ["Ural Mountains", "Alps", "Carpathians", "Pyrenees"], correct: 0, region: "Europe", difficulty: 1 },
+  { q: "What is the smallest country in Europe?", options: ["Vatican City", "Monaco", "San Marino", "Liechtenstein"], correct: 0, region: "Europe", difficulty: 2 },
+
+  // Asia - Medium
+  { q: "What is the capital of Japan?", options: ["Tokyo", "Osaka", "Kyoto", "Yokohama"], correct: 0, region: "Asia", difficulty: 1 },
+  { q: "Which Asian country has the largest population?", options: ["India", "China", "Indonesia", "Pakistan"], correct: 0, region: "Asia", difficulty: 1 },
+  { q: "What is the largest island in Asia?", options: ["Borneo", "Sumatra", "Honshu", "Sulawesi"], correct: 0, region: "Asia", difficulty: 2 },
+  { q: "Which desert is the largest in Asia?", options: ["Gobi Desert", "Thar Desert", "Arabian Desert", "Karakum Desert"], correct: 0, region: "Asia", difficulty: 2 },
+  { q: "What is the capital of South Korea?", options: ["Seoul", "Busan", "Incheon", "Daegu"], correct: 0, region: "Asia", difficulty: 1 },
+
+  // Africa - Medium
+  { q: "What is the longest river in Africa?", options: ["Nile", "Congo", "Niger", "Zambezi"], correct: 0, region: "Africa", difficulty: 1 },
+  { q: "Which African country has the largest economy?", options: ["Nigeria", "South Africa", "Egypt", "Ethiopia"], correct: 0, region: "Africa", difficulty: 2 },
+  { q: "What is the highest mountain in Africa?", options: ["Mount Kilimanjaro", "Mount Kenya", "Mount Everest", "Mount Fuji"], correct: 0, region: "Africa", difficulty: 1 },
+  { q: "Which African country was formerly known as Abyssinia?", options: ["Ethiopia", "Eritrea", "Somalia", "Sudan"], correct: 0, region: "Africa", difficulty: 3 },
+  { q: "What is the largest desert in Africa?", options: ["Sahara", "Kalahari", "Namib", "Libyan Desert"], correct: 0, region: "Africa", difficulty: 1 },
+
+  // North America - Easy
+  { q: "What is the capital of the United States?", options: ["Washington D.C.", "New York", "Los Angeles", "Chicago"], correct: 0, region: "North America", difficulty: 1 },
+  { q: "Which country has the longest coastline in North America?", options: ["Canada", "United States", "Mexico", "Greenland"], correct: 0, region: "North America", difficulty: 2 },
+  { q: "What is the largest city in North America?", options: ["Mexico City", "New York City", "Los Angeles", "Toronto"], correct: 0, region: "North America", difficulty: 1 },
+  { q: "Which North American country is the largest by area?", options: ["Canada", "United States", "Mexico", "Greenland"], correct: 0, region: "North America", difficulty: 1 },
+
+  // South America - Medium
+  { q: "What is the capital of Brazil?", options: ["Brasília", "São Paulo", "Rio de Janeiro", "Buenos Aires"], correct: 0, region: "South America", difficulty: 1 },
+  { q: "Which South American country is the largest by area?", options: ["Brazil", "Argentina", "Peru", "Colombia"], correct: 0, region: "South America", difficulty: 1 },
+  { q: "What is the longest river in South America?", options: ["Amazon", "Paraná", "Orinoco", "Magdalena"], correct: 0, region: "South America", difficulty: 1 },
+  { q: "Which South American country has the Andes running through it?", options: ["Chile", "Brazil", "Argentina", "Colombia"], correct: 0, region: "South America", difficulty: 2 },
+
+  // Oceania - Hard
+  { q: "What is the capital of Australia?", options: ["Canberra", "Sydney", "Melbourne", "Brisbane"], correct: 0, region: "Oceania", difficulty: 1 },
+  { q: "Which country is the largest in Oceania by population?", options: ["Australia", "Papua New Guinea", "New Zealand", "Fiji"], correct: 0, region: "Oceania", difficulty: 1 },
+  { q: "What is the largest coral reef system in the world?", options: ["Great Barrier Reef", "Belize Barrier Reef", "Red Sea Reef", "Mesoamerican Reef"], correct: 0, region: "Oceania", difficulty: 1 },
+  { q: "Which Oceanian island nation is known as 'The Land of the Long White Cloud'?", options: ["New Zealand", "Fiji", "Tonga", "Samoa"], correct: 0, region: "Oceania", difficulty: 3 },
+
+  // Global - Hard
+  { q: "What is the smallest country in the world?", options: ["Vatican City", "Monaco", "Nauru", "San Marino"], correct: 0, region: "Global", difficulty: 1 },
+  { q: "Which country has the most time zones?", options: ["France", "Russia", "United States", "China"], correct: 0, region: "Global", difficulty: 3 },
+  { q: "What is the deepest point in the ocean?", options: ["Mariana Trench", "Puerto Rico Trench", "Java Trench", "Tonga Trench"], correct: 0, region: "Global", difficulty: 2 },
+  { q: "Which country borders the most other countries?", options: ["China", "Russia", "Brazil", "France"], correct: 0, region: "Global", difficulty: 3 },
+];
+
+// ===== REGION DIFFICULTY BONUSES =====
+const regionBonuses = {
+  "Europe": 1.0,
+  "Asia": 1.2,
+  "Africa": 1.3,
+  "North America": 1.0,
+  "South America": 1.2,
+  "Oceania": 1.5,
+  "Global": 1.4
+};
+
+const difficultyLabels = {
+  1: "★ Easy",
+  2: "★★ Medium",
+  3: "★★★ Hard"
+};
+
+// ===== GAME STATE =====
+let gameState = {
+  score: 0,
+  streak: 0,
+  maxStreak: 0,
+  multiplier: 1,
+  lives: 3,
+  maxLives: 3,
+  currentQuestion: 0,
+  totalQuestions: 15,
+  questions: [],
+  timer: 15,
+  timerInterval: null,
+  questionStartTime: 0,
+  livesMode: false,
+  playerName: "Anonymous",
+  correctAnswers: 0,
+  wrongAnswers: 0,
+  totalPointsEarned: 0,
+  achievements: [],
+  gameActive: false
+};
+
+// ===== ACHIEVEMENTS DEFINITION =====
+const achievementDefs = [
+  { id: "first_blood", name: "First Blood", desc: "Get your first correct answer", icon: "🩸", check: (s) => s.correctAnswers >= 1 },
+  { id: "streak_master", name: "Streak Master", desc: "Achieve a 5+ streak", icon: "🔥", check: (s) => s.maxStreak >= 5 },
+  { id: "cartographer", name: "Cartographer", desc: "Answer all questions correctly", icon: "🗺️", check: (s) => s.correctAnswers === s.totalQuestions && s.wrongAnswers === 0 },
+  { id: "speed_demon", name: "Speed Demon", desc: "Answer 5 questions in under 3 seconds", icon: "⚡", check: (s) => s.fastAnswers >= 5 },
+  { id: "comeback", name: "Comeback Kid", desc: "Get a 3+ streak after a wrong answer", icon: "🔄", check: (s) => s.comebackStreak >= 3 },
+  { id: "century", name: "Century Club", desc: "Score 1000+ points in one game", icon: "💯", check: (s) => s.totalPointsEarned >= 1000 },
+  { id: "perfect_5", name: "Perfect Five", desc: "Get 5 correct in a row", icon: "✨", check: (s) => s.maxStreak >= 5 },
+  { id: "world_explorer", name: "World Explorer", desc: "Answer questions from 5+ regions", icon: "🌍", check: (s) => s.regionsAnswered >= 5 },
+];
+
+// ===== PARTICLE SYSTEM =====
+class ParticleSystem {
+  constructor(container) {
+    this.container = container;
+  }
+
+  spawn(x, y, count = 20, colors = ['#00e676', '#00d4ff', '#ffd700', '#7b2ff7']) {
+    for (let i = 0; i < count; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle';
+      const size = Math.random() * 8 + 4;
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      const distance = Math.random() * 150 + 50;
+      const tx = Math.cos(angle) * distance;
+      const ty = Math.sin(angle) * distance;
+      particle.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        left: ${x}px;
+        top: ${y}px;
+        background: ${colors[Math.floor(Math.random() * colors.length)]};
+        --tx: ${tx}px;
+        --ty: ${ty}px;
+      `;
+      this.container.appendChild(particle);
+      setTimeout(() => particle.remove(), 1000);
+    }
+  }
+}
+
+const particles = new ParticleSystem(document.getElementById('particleContainer'));
+
+// ===== SCORE ROLLING ANIMATION =====
+function animateScore(target, elementId = 'scoreDisplay') {
+  const el = document.getElementById(elementId);
+  const start = parseInt(el.textContent) || 0;
+  const diff = target - start;
+  const duration = 600;
+  const startTime = performance.now();
+
+  function update(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(start + diff * eased);
+    el.textContent = current;
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+  el.classList.add('score-rolling');
+  setTimeout(() => el.classList.remove('score-rolling'), 600);
+}
+
+// ===== SHOW SCORE POPUP =====
+function showScorePopup(points, x, y) {
+  const popup = document.createElement('div');
+  popup.className = `score-popup ${points >= 0 ? 'positive' : 'negative'}`;
+  popup.textContent = (points >= 0 ? '+' : '') + points;
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+  document.body.appendChild(popup);
+  setTimeout(() => popup.remove(), 1200);
+}
+
+// ===== SHOW ACHIEVEMENT =====
+function showAchievement(achievement) {
+  const container = document.getElementById('achievementContainer');
+  const el = document.createElement('div');
+  el.className = 'achievement';
+  el.innerHTML = `
+    <div class="icon">${achievement.icon}</div>
+    <div class="info">
+      <div class="title">🏆 ${achievement.name}</div>
+      <div class="desc">${achievement.desc}</div>
+    </div>
+  `;
+  container.appendChild(el);
+  audio.achievementUnlock();
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ===== CHECK ACHIEVEMENTS =====
+function checkAchievements() {
+  const gs = gameState;
+  achievementDefs.forEach(def => {
+    if (!gs.achievements.includes(def.id) && def.check(gs)) {
+      gs.achievements.push(def.id);
+      showAchievement(def);
+    }
+  });
+}
+
+// ===== UPDATE UI =====
+function updateUI() {
+  const gs = gameState;
+
+  // Score
+  animateScore(gs.score);
+
+  // Streak
+  const streakEl = document.getElementById('streakDisplay');
+  streakEl.textContent = gs.streak;
+  if (gs.streak >= 3) {
+    streakEl.innerHTML = gs.streak + ' <span class="fire-emoji">🔥</span>'.repeat(Math.min(gs.streak, 5));
+  }
+
+  // Multiplier
+  const multEl = document.getElementById('multiplierDisplay');
+  multEl.innerHTML = `<span class="multiplier-badge">${gs.multiplier}x</span>`;
+
+  // Lives
+  if (gs.livesMode) {
+    document.getElementById('livesCard').classList.remove('hidden');
+    let hearts = '';
+    for (let i = 0; i < gs.maxLives; i++) {
+      hearts += i < gs.lives ? '❤️' : '🖤';
+    }
+    document.getElementById('livesDisplay').textContent = hearts;
+  }
+
+  // Timer
+  document.getElementById('timerDisplay').textContent = gs.timer;
+
+  // Progress
+  const progress = ((gs.currentQuestion) / gs.totalQuestions) * 100;
+  document.getElementById('progressFill').style.width = progress + '%';
+
+  // Subtitle
+  document.getElementById('subtitle').textContent =
+    `Question ${gs.currentQuestion + 1} of ${gs.totalQuestions}`;
+}
+
+// ===== GET MULTIPLIER =====
+function getMultiplier(streak) {
+  if (streak >= 10) return 3;
+  if (streak >= 5) return 2;
+  if (streak >= 3) return 1.5;
+  return 1;
+}
+
+// ===== CALCULATE SCORE =====
+function calculateScore(correct, question) {
+  const basePoints = correct ? 100 : -20;
+  const regionBonus = regionBonuses[question.region] || 1;
+  const difficultyBonus = question.difficulty;
+  const timeBonus = correct ? Math.max(0, gameState.timer) * 2 : 0;
+  const multiplier = gameState.multiplier;
+
+  if (correct) {
+    return Math.round((basePoints * regionBonus * difficultyBonus * multiplier) + timeBonus);
+  }
+  return basePoints;
+}
+
+// ===== SCREEN SHAKE =====
+function screenShake() {
+  const app = document.getElementById('app');
+  app.classList.add('shake');
+  setTimeout(() => app.classList.remove('shake'), 500);
+}
+
+
+
+// ===== LOAD QUESTION =====
+function loadQuestion() {
+  const gs = gameState;
+  const question = gs.questions[gs.currentQuestion];
+
+  document.getElementById('questionNumber').textContent = `Question ${gs.currentQuestion + 1}`;
+  document.getElementById('regionName').textContent = question.region;
+  document.getElementById('regionDifficulty').textContent = difficultyLabels[question.difficulty] || '★ Easy';
+  document.getElementById('questionText').textContent = question.q;
+
+  // Shuffle options but keep track of correct answer
+  const shuffled = question.options.map((opt, i) => ({ text: opt, wasCorrect: i === question.correct }));
+  // Fisher-Yates shuffle
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  const optionsEl = document.getElementById('options');
+  optionsEl.innerHTML = '';
+  shuffled.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt.text;
+    btn.onclick = () => handleAnswerByButton(btn, question);
+    optionsEl.appendChild(btn);
+  });
+
+  // Reset timer
+  gs.timer = 15;
+  gs.questionStartTime = Date.now();
+  startTimer();
+  updateUI();
+}
+
+function handleAnswerByButton(btn, question) {
+  if (!gameState.gameActive) return;
+
+  const gs = gameState;
+  const isCorrect = btn.textContent === question.options[question.correct];
+  const elapsed = (Date.now() - gs.questionStartTime) / 1000;
+
+  // Disable all buttons
+  document.querySelectorAll('.option-btn').forEach(b => {
+    b.disabled = true;
+    b.onclick = null;
+  });
+
+  if (isCorrect) {
+    btn.classList.add('correct');
+    gs.correctAnswers++;
+    gs.streak++;
+    gs.maxStreak = Math.max(gs.maxStreak, gs.streak);
+    gs.multiplier = getMultiplier(gs.streak);
+
+    const points = calculateScore(true, question);
+    gs.score += points;
+    gs.totalPointsEarned += Math.abs(points);
+
+    if (elapsed < 3) {
+      gs.fastAnswers = (gs.fastAnswers || 0) + 1;
+    }
+
+    if (!gs.regionsSet) gs.regionsSet = new Set();
+    gs.regionsSet.add(question.region);
+    gs.regionsAnswered = gs.regionsSet.size;
+
+    if (gs.wrongAnswers > 0 && gs.streak >= 3) {
+      gs.comebackStreak = Math.max(gs.comebackStreak || 0, gs.streak);
+    }
+
+    audio.correctBeep();
+    if (gs.streak >= 3) audio.comboChime();
+
+    const rect = btn.getBoundingClientRect();
+    particles.spawn(rect.left + rect.width / 2, rect.top + rect.height / 2, 25);
+    showScorePopup(points, rect.left + rect.width / 2, rect.top - 20);
+
+    checkAchievements();
+  } else {
+    btn.classList.add('wrong');
+    // Highlight correct answer
+    document.querySelectorAll('.option-btn').forEach(b => {
+      if (b.textContent === question.options[question.correct]) {
+        b.classList.add('correct');
+      }
+    });
+    gs.wrongAnswers++;
+    gs.streak = 0;
+    gs.multiplier = 1;
+
+    const points = calculateScore(false, question);
+    gs.score += points;
+
+    audio.wrongBuzz();
+    screenShake();
+
+    if (gs.livesMode) {
+      gs.lives--;
+      if (gs.lives <= 0) {
+        endGame();
+        return;
+      }
+    }
+
+    checkAchievements();
+  }
+
+  updateUI();
+
+  setTimeout(() => {
+    gs.currentQuestion++;
+    if (gs.currentQuestion >= gs.totalQuestions) {
+      endGame();
+    } else {
+      loadQuestion();
+    }
+  }, 1200);
+}
+
+// ===== TIMER =====
+function startTimer() {
+  clearInterval(gameState.timerInterval);
+  gameState.timerInterval = setInterval(() => {
+    if (!gameState.gameActive) return;
+    gameState.timer--;
+    document.getElementById('timerDisplay').textContent = gameState.timer;
+
+    const pct = (gameState.timer / 15) * 100;
+    const fill = document.getElementById('timerFill');
+    fill.style.width = pct + '%';
+    fill.className = 'timer-fill' +
+      (pct < 20 ? ' danger' : pct < 50 ? ' warning' : '');
+
+    if (gameState.timer <= 0) {
+      clearInterval(gameState.timerInterval);
+      // Time's up = wrong answer
+      const question = gameState.questions[gameState.currentQuestion];
+      gameState.wrongAnswers++;
+      gameState.streak = 0;
+      gameState.multiplier = 1;
+      gameState.score -= 20;
+
+      audio.wrongBuzz();
+      screenShake();
+
+      if (gameState.livesMode) {
+        gameState.lives--;
+        if (gameState.lives <= 0) {
+          endGame();
+          return;
+        }
+      }
+
+      updateUI();
+
+      setTimeout(() => {
+        gameState.currentQuestion++;
+        if (gameState.currentQuestion >= gameState.totalQuestions) {
+          endGame();
+        } else {
+          loadQuestion();
+        }
+      }, 1000);
+    }
+  }, 1000);
+}
+
+// ===== TOGGLE LIVES MODE =====
+function toggleLivesMode() {
+  gameState.livesMode = !gameState.livesMode;
+  document.getElementById('livesToggle').classList.toggle('active', gameState.livesMode);
+  if (!gameState.livesMode) {
+    document.getElementById('livesCard').classList.add('hidden');
+  }
+}
+
+// ===== START GAME =====
+function startGame() {
+  audio.init();
+
+  const nameInput = document.getElementById('playerName');
+  gameState.playerName = nameInput.value.trim() || 'Anonymous';
+
+  // Reset state
+  gameState.score = 0;
+  gameState.streak = 0;
+  gameState.maxStreak = 0;
+  gameState.multiplier = 1;
+  gameState.lives = 3;
+  gameState.currentQuestion = 0;
+  gameState.correctAnswers = 0;
+  gameState.wrongAnswers = 0;
+  gameState.totalPointsEarned = 0;
+  gameState.achievements = [];
+  gameState.fastAnswers = 0;
+  gameState.comebackStreak = 0;
+  gameState.regionsSet = new Set();
+  gameState.regionsAnswered = 0;
+  gameState.gameActive = true;
+
+  // Select random questions
+  const shuffled = [...questions].sort(() => Math.random() - 0.5);
+  gameState.questions = shuffled.slice(0, gameState.totalQuestions);
+
+  // Switch screens
+  document.getElementById('welcomeScreen').classList.add('hidden');
+  document.getElementById('gameScreen').classList.remove('hidden');
+
+  // Remove any game over overlay
+  const existing = document.querySelector('.game-over-overlay');
+  if (existing) existing.remove();
+
+  // Reset lives display
+  if (!gameState.livesMode) {
+    document.getElementById('livesCard').classList.add('hidden');
+  }
+
+  loadQuestion();
+}
+
+// ===== END GAME =====
+function endGame() {
+  gameState.gameActive = false;
+  clearInterval(gameState.timerInterval);
+
+  // Check for cartographer achievement
+  checkAchievements();
+
+  // Save to leaderboard
+  saveToLeaderboard();
+
+  // Show game over
+  const overlay = document.createElement('div');
+  overlay.className = 'game-over-overlay';
+  overlay.innerHTML = `
+    <div class="game-over-card">
+      <h2>${gameState.livesMode && gameState.lives <= 0 ? '💀 Game Over!' : '🎉 Game Complete!'}</h2>
+      <div class="final-score" id="finalScore">${gameState.score}</div>
+      <div class="stats-summary">
+        <div class="stat-item">
+          <div class="stat-val">${gameState.correctAnswers}</div>
+          <div class="stat-lbl">Correct</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">${gameState.wrongAnswers}</div>
+          <div class="stat-lbl">Wrong</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">${gameState.maxStreak}</div>
+          <div class="stat-lbl">Best Streak</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">${gameState.achievements.length}/${achievementDefs.length}</div>
+          <div class="stat-lbl">Achievements</div>
+        </div>
+      </div>
+      <button class="btn" onclick="startGame()" style="margin-right: 8px;">Play Again</button>
+      <button class="btn secondary" onclick="showLeaderboard()">🏆 Leaderboard</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Animate final score
+  const finalScoreEl = document.getElementById('finalScore');
+  const startVal = 0;
+  const targetVal = gameState.score;
+  const duration = 1000;
+  const startTime = performance.now();
+
+  function animateFinal(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    finalScoreEl.textContent = Math.round(startVal + (targetVal - startVal) * eased);
+    if (progress < 1) requestAnimationFrame(animateFinal);
+  }
+  requestAnimationFrame(animateFinal);
+
+  audio.victoryFanfare();
+}
+
+// ===== LEADERBOARD =====
+function saveToLeaderboard() {
+  const scores = JSON.parse(localStorage.getItem('geoQuizLeaderboard') || '[]');
+  scores.push({
+    name: gameState.playerName,
+    score: gameState.score,
+    correct: gameState.correctAnswers,
+    total: gameState.totalQuestions,
+    maxStreak: gameState.maxStreak,
+    date: new Date().toLocaleDateString(),
+    achievements: gameState.achievements.length
+  });
+  scores.sort((a, b) => b.score - a.score);
+  localStorage.setItem('geoQuizLeaderboard', JSON.stringify(scores.slice(0, 50)));
+}
+
+function showLeaderboard() {
+  // Remove game over overlay if present
+  const existing = document.querySelector('.game-over-overlay');
+  if (existing) existing.remove();
+
+  const scores = JSON.parse(localStorage.getItem('geoQuizLeaderboard') || '[]');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'game-over-overlay';
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
+
+  let rows = '';
+  if (scores.length === 0) {
+    rows = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:30px;">No scores yet. Play a game!</td></tr>';
+  } else {
+    scores.forEach((entry, i) => {
+      const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
+      const medal = i === 0 ? '👑' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+      rows += `
+        <tr>
+          <td class="${rankClass}">${medal}</td>
+          <td class="${rankClass}">${entry.name}</td>
+          <td>${entry.score}</td>
+          <td>${entry.correct}/${entry.total}</td>
+          <td>${entry.date}</td>
+        </tr>
+      `;
+    });
+  }
+
+  overlay.innerHTML = `
+    <div class="game-over-card" style="max-width: 600px;">
+      <h2>🏆 Leaderboard</h2>
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Score</th>
+            <th>Accuracy</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <button class="btn" onclick="this.closest('.game-over-overlay').remove(); startGame();" style="margin-top: 20px;">
+        Play Game
+      </button>
+      <button class="btn secondary" onclick="this.closest('.game-over-overlay').remove();" style="margin-top: 8px;">
+        Close
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+// ===== SOUND TOGGLE =====
+function toggleSound() {
+  const enabled = audio.toggle();
+  document.getElementById('soundToggle').textContent = enabled ? '🔊' : '🔇';
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  // Load saved name
+  const savedName = localStorage.getItem('geoQuizPlayerName');
+  if (savedName) {
+    document.getElementById('playerName').value = savedName;
+  }
+});
+
+// Save player name on change
+document.getElementById('playerName').addEventListener('input', (e) => {
+  localStorage.setItem('geoQuizPlayerName', e.target.value);
+});
+</script>
+</body>
+</html>

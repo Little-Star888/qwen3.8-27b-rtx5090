@@ -1,0 +1,764 @@
+[
+  {
+    "name": "Afghanistan",
+    "lat": 33.9391,
+    "lng": 67.71,
+    "capital": "Kabul",
+    "population_millions": 41.1,
+    "region": "South Asia",
+    "flag": "🇦🇫",
+    "alternate_names": [
+      "Afghanistan",
+      "Republic of Afghanistan",
+      "Afghan"
+    ],
+    "continent_color_hint": "landlocked South Asian country, mountainous terrain"
+  },
+  {
+    "name": "Armenia",
+    "lat": 40.0691,
+    "lng": 45.0382,
+    "capital": "Yerevan",
+    "population_millions": 2.8,
+    "region": "Western Asia",
+    "flag": "🇦🇲",
+    "alternate_names": [
+      "Armenia",
+      "Republic of Armenia",
+      "Hayastan"
+    ],
+    "continent_color_hint": "transcontinental, Caucasus region, landlocked"
+  },
+  {
+    "name": "Azerbaijan",
+    "lat": 40.1431,
+    "lng": 49.5538,
+    "capital": "Baku",
+    "population_millions": 10.1,
+    "region": "Western Asia",
+    "flag": "🇦🇿",
+    "alternate_names": [
+      "Azerbaijan",
+      "Republic of Azerbaijan",
+      "Azərbaycan"
+    ],
+    "continent_color_hint": "transcontinental, Caucasus region, Caspian Sea coast"
+  },
+  {
+    "name": "Bahrain",
+    "lat": 26.0667,
+    "lng": 50.5577,
+    "capital": "Manama",
+    "population_millions": 1.7,
+    "region": "Western Asia",
+    "flag": "🇧🇭",
+    "alternate_names": [
+      "Bahrain",
+      "Kingdom of Bahrain"
+    ],
+    "continent_color_hint": "Arabian Peninsula island kingdom, Persian Gulf"
+  },
+  {
+    "name": "Bangladesh",
+    "lat": 23.685,
+    "lng": 90.3563,
+    "capital": "Dhaka",
+    "population_millions": 172.9,
+    "region": "South Asia",
+    "flag": "🇧🇩",
+    "alternate_names": [
+      "Bangladesh",
+      "People's Republic of Bangladesh",
+      "Bengal"
+    ],
+    "continent_color_hint": "South Asian delta nation, riverine landscape"
+  },
+  {
+    "name": "Bhutan",
+    "lat": 27.5142,
+    "lng": 89.6335,
+    "capital": "Thimphu",
+    "population_millions": 0.8,
+    "region": "South Asia",
+    "flag": "🇧🇹",
+    "alternate_names": [
+      "Bhutan",
+      "Kingdom of Bhutan",
+      "Druk Yul"
+    ],
+    "continent_color_hint": "Himalayan kingdom, landlocked between India and China"
+  },
+  {
+    "name": "Brunei",
+    "lat": 4.5353,
+    "lng": 114.7277,
+    "capital": "Bandar Seri Begawan",
+    "population_millions": 0.4,
+    "region": "Southeast Asia",
+    "flag": "🇧🇳",
+    "alternate_names": [
+      "Brunei",
+      "Brunei Darussalam",
+      "Nation of Brunei"
+    ],
+    "continent_color_hint": "Borneo sultanate, oil-rich coastal state"
+  },
+  {
+    "name": "Cambodia",
+    "lat": 12.5657,
+    "lng": 104.991,
+    "capital": "Phnom Penh",
+    "population_millions": 17.1,
+    "region": "Southeast Asia",
+    "flag": "🇰🇭",
+    "alternate_names": [
+      "Cambodia",
+      "Kingdom of Cambodia",
+      "Kampuchea"
+    ],
+    "continent_color_hint": "Indochina peninsula, Angkor heritage"
+  },
+  {
+    "name": "China",
+    "lat": 35.8617,
+    "lng": 104.1954,
+    "capital": "Beijing",
+    "population_millions": 1412.0,
+    "region": "East Asia",
+    "flag": "🇨🇳",
+    "alternate_names": [
+      "China",
+      "PRC",
+      "People's Republic of China",
+      "PR China",
+      "Zhongguo",
+      "Mandarin: 中国"
+    ],
+    "continent_color_hint": "East Asian powerhouse, vast continental landmass"
+  },
+  {
+    "name": "Cyprus",
+    "lat": 35.1264,
+    "lng": 33.4299,
+    "capital": "Nicosia",
+    "population_millions": 1.3,
+    "region": "Western Asia",
+    "flag": "🇨🇾",
+    "alternate_names": [
+      "Cyprus",
+      "Republic of Cyprus",
+      "Kýpros"
+    ],
+    "continent_color_hint": "Mediterranean island, geographically Asian"
+  },
+  {
+    "name": "Georgia",
+    "lat": 42.3154,
+    "lng": 43.3569,
+    "capital": "Tbilisi",
+    "population_millions": 3.7,
+    "region": "Western Asia",
+    "flag": "🇬🇪",
+    "alternate_names": [
+      "Georgia",
+      "Georgian Republic",
+      "Sakartvelo"
+    ],
+    "continent_color_hint": "transcontinental, Caucasus region, Black Sea proximity"
+  },
+  {
+    "name": "India",
+    "lat": 20.5937,
+    "lng": 78.9629,
+    "capital": "New Delhi",
+    "population_millions": 1428.6,
+    "region": "South Asia",
+    "flag": "🇮🇳",
+    "alternate_names": [
+      "India",
+      "Republic of India",
+      "Bharat",
+      "Hindustan"
+    ],
+    "continent_color_hint": "South Asian subcontinent, most populous democracy"
+  },
+  {
+    "name": "Indonesia",
+    "lat": -0.7893,
+    "lng": 113.9239,
+    "capital": "Jakarta",
+    "population_millions": 277.0,
+    "region": "Southeast Asia",
+    "flag": "🇮🇩",
+    "alternate_names": [
+      "Indonesia",
+      "Republic of Indonesia",
+      "Nusantara"
+    ],
+    "continent_color_hint": "archipelagic Southeast Asian nation, equatorial"
+  },
+  {
+    "name": "Iran",
+    "lat": 32.428,
+    "lng": 53.688,
+    "capital": "Tehran",
+    "population_millions": 89.0,
+    "region": "Western Asia",
+    "flag": "🇮🇷",
+    "alternate_names": [
+      "Iran",
+      "Islamic Republic of Iran",
+      "Persia",
+      "Persian Empire"
+    ],
+    "continent_color_hint": "Middle Eastern plateau, Persian heritage"
+  },
+  {
+    "name": "Iraq",
+    "lat": 33.2232,
+    "lng": 43.6793,
+    "capital": "Baghdad",
+    "population_millions": 45.0,
+    "region": "Western Asia",
+    "flag": "🇮🇶",
+    "alternate_names": [
+      "Iraq",
+      "Republic of Iraq",
+      "Mesopotamia"
+    ],
+    "continent_color_hint": "Middle Eastern, cradle of civilization"
+  },
+  {
+    "name": "Israel",
+    "lat": 31.0461,
+    "lng": 34.8516,
+    "capital": "Jerusalem",
+    "population_millions": 9.8,
+    "region": "Western Asia",
+    "flag": "🇮🇱",
+    "alternate_names": [
+      "Israel",
+      "State of Israel",
+      "Yisrael"
+    ],
+    "continent_color_hint": "Middle Eastern, Mediterranean-Levant coast"
+  },
+  {
+    "name": "Japan",
+    "lat": 36.2048,
+    "lng": 138.2529,
+    "capital": "Tokyo",
+    "population_millions": 123.3,
+    "region": "East Asia",
+    "flag": "🇯🇵",
+    "alternate_names": [
+      "Japan",
+      "Nihon",
+      "Nippon",
+      "Land of the Rising Sun"
+    ],
+    "continent_color_hint": "East Asian island arc, Pacific Rim"
+  },
+  {
+    "name": "Jordan",
+    "lat": 30.5852,
+    "lng": 36.2384,
+    "capital": "Amman",
+    "population_millions": 11.5,
+    "region": "Western Asia",
+    "flag": "🇯🇴",
+    "alternate_names": [
+      "Jordan",
+      "Hashemite Kingdom of Jordan",
+      "Urdun"
+    ],
+    "continent_color_hint": "Middle Eastern Levant, desert and Dead Sea"
+  },
+  {
+    "name": "Kazakhstan",
+    "lat": 48.0196,
+    "lng": 66.9064,
+    "capital": "Astana",
+    "population_millions": 19.6,
+    "region": "Central Asia",
+    "flag": "🇰🇿",
+    "alternate_names": [
+      "Kazakhstan",
+      "Republic of Kazakhstan",
+      "Qazaqstan"
+    ],
+    "continent_color_hint": "transcontinental, largest landlocked country, Central Asian steppe"
+  },
+  {
+    "name": "Kuwait",
+    "lat": 29.0761,
+    "lng": 47.6546,
+    "capital": "Kuwait City",
+    "population_millions": 4.3,
+    "region": "Western Asia",
+    "flag": "🇰🇼",
+    "alternate_names": [
+      "Kuwait",
+      "State of Kuwait",
+      "Kuwait Emirate"
+    ],
+    "continent_color_hint": "Arabian Peninsula, Persian Gulf coast, oil-rich"
+  },
+  {
+    "name": "Kyrgyzstan",
+    "lat": 41.2081,
+    "lng": 74.1176,
+    "capital": "Bishkek",
+    "population_millions": 7.0,
+    "region": "Central Asia",
+    "flag": "🇰🇬",
+    "alternate_names": [
+      "Kyrgyzstan",
+      "Kyrgyz Republic",
+      "Kirghizia"
+    ],
+    "continent_color_hint": "Central Asian mountain republic, Tian Shan"
+  },
+  {
+    "name": "Laos",
+    "lat": 19.8563,
+    "lng": 102.4955,
+    "capital": "Vientiane",
+    "population_millions": 7.6,
+    "region": "Southeast Asia",
+    "flag": "🇱🇦",
+    "alternate_names": [
+      "Laos",
+      "Lao PDR",
+      "Lao People's Democratic Republic",
+      "Lan Xang"
+    ],
+    "continent_color_hint": "Indochina landlocked, Mekong River basin"
+  },
+  {
+    "name": "Lebanon",
+    "lat": 33.8547,
+    "lng": 35.8623,
+    "capital": "Beirut",
+    "population_millions": 5.5,
+    "region": "Western Asia",
+    "flag": "🇱🇧",
+    "alternate_names": [
+      "Lebanon",
+      "Lebanese Republic",
+      "Lubnan"
+    ],
+    "continent_color_hint": "Middle Eastern Levant, Mediterranean coast"
+  },
+  {
+    "name": "Malaysia",
+    "lat": 4.2105,
+    "lng": 101.9758,
+    "capital": "Kuala Lumpur",
+    "population_millions": 34.0,
+    "region": "Southeast Asia",
+    "flag": "🇲🇾",
+    "alternate_names": [
+      "Malaysia",
+      "Malaysian Federation"
+    ],
+    "continent_color_hint": "Southeast Asian, Peninsular and Borneo regions"
+  },
+  {
+    "name": "Maldives",
+    "lat": 3.2028,
+    "lng": 73.2207,
+    "capital": "Malé",
+    "population_millions": 0.5,
+    "region": "South Asia",
+    "flag": "🇲🇻",
+    "alternate_names": [
+      "Maldives",
+      "Republic of Maldives",
+      "Maldive Islands"
+    ],
+    "continent_color_hint": "South Asian coral atoll archipelago, Indian Ocean"
+  },
+  {
+    "name": "Mongolia",
+    "lat": 46.8625,
+    "lng": 103.8467,
+    "capital": "Ulaanbaatar",
+    "population_millions": 3.4,
+    "region": "East Asia",
+    "flag": "🇲🇳",
+    "alternate_names": [
+      "Mongolia",
+      "Mongol Uls",
+      "Great Mongol State"
+    ],
+    "continent_color_hint": "East Asian steppe, landlocked between Russia and China"
+  },
+  {
+    "name": "Myanmar",
+    "lat": 21.9162,
+    "lng": 95.956,
+    "capital": "Naypyidaw",
+    "population_millions": 54.4,
+    "region": "Southeast Asia",
+    "flag": "🇲🇲",
+    "alternate_names": [
+      "Myanmar",
+      "Burma",
+      "Union of Myanmar"
+    ],
+    "continent_color_hint": "Southeast Asian, Indochina peninsula, Bay of Bengal"
+  },
+  {
+    "name": "Nepal",
+    "lat": 28.3947,
+    "lng": 84.124,
+    "capital": "Kathmandu",
+    "population_millions": 30.5,
+    "region": "South Asia",
+    "flag": "🇳🇵",
+    "alternate_names": [
+      "Nepal",
+      "Federal Democratic Republic of Nepal"
+    ],
+    "continent_color_hint": "Himalayan South Asian, home of Mount Everest"
+  },
+  {
+    "name": "North Korea",
+    "lat": 40.3399,
+    "lng": 127.5101,
+    "capital": "Pyongyang",
+    "population_millions": 26.0,
+    "region": "East Asia",
+    "flag": "🇰🇵",
+    "alternate_names": [
+      "North Korea",
+      "DPRK",
+      "DPR Korea",
+      "Democratic People's Republic of Korea"
+    ],
+    "continent_color_hint": "Korean Peninsula north, isolated East Asian state"
+  },
+  {
+    "name": "Oman",
+    "lat": 21.4735,
+    "lng": 55.6761,
+    "capital": "Muscat",
+    "population_millions": 5.2,
+    "region": "Western Asia",
+    "flag": "🇴🇲",
+    "alternate_names": [
+      "Oman",
+      "Sultanate of Oman",
+      "Muscat and Oman"
+    ],
+    "continent_color_hint": "Arabian Peninsula southeast, Arabian Sea and Gulf of Oman"
+  },
+  {
+    "name": "Pakistan",
+    "lat": 30.3753,
+    "lng": 69.3451,
+    "capital": "Islamabad",
+    "population_millions": 240.5,
+    "region": "South Asia",
+    "flag": "🇵🇰",
+    "alternate_names": [
+      "Pakistan",
+      "Islamic Republic of Pakistan"
+    ],
+    "continent_color_hint": "South Asian, Himalayan foothills to Arabian Sea"
+  },
+  {
+    "name": "Palestine",
+    "lat": 31.9539,
+    "lng": 35.2341,
+    "capital": "Ramallah",
+    "population_millions": 5.3,
+    "region": "Western Asia",
+    "flag": "🇵🇸",
+    "alternate_names": [
+      "Palestine",
+      "State of Palestine",
+      "Palestinian Authority",
+      "West Bank and Gaza"
+    ],
+    "continent_color_hint": "Middle Eastern Levant, West Bank and Gaza Strip"
+  },
+  {
+    "name": "Philippines",
+    "lat": 12.8797,
+    "lng": 121.774,
+    "capital": "Manila",
+    "population_millions": 115.0,
+    "region": "Southeast Asia",
+    "flag": "🇵🇭",
+    "alternate_names": [
+      "Philippines",
+      "Republic of the Philippines",
+      "Pilipinas"
+    ],
+    "continent_color_hint": "Southeast Asian archipelago, Pacific Rim"
+  },
+  {
+    "name": "Qatar",
+    "lat": 25.3548,
+    "lng": 51.1839,
+    "capital": "Doha",
+    "population_millions": 2.9,
+    "region": "Western Asia",
+    "flag": "🇶🇦",
+    "alternate_names": [
+      "Qatar",
+      "State of Qatar",
+      "Qaṭar"
+    ],
+    "continent_color_hint": "Arabian Peninsula peninsula, Persian Gulf, gas-rich"
+  },
+  {
+    "name": "Russia",
+    "lat": 61.524,
+    "lng": 105.3188,
+    "capital": "Moscow",
+    "population_millions": 144.0,
+    "region": "Central Asia",
+    "flag": "🇷🇺",
+    "alternate_names": [
+      "Russia",
+      "Russian Federation",
+      "Rossiya",
+      "Siberia (eastern Asia)"
+    ],
+    "continent_color_hint": "transcontinental, largest country, spans Europe and Asia"
+  },
+  {
+    "name": "Saudi Arabia",
+    "lat": 23.8859,
+    "lng": 45.0792,
+    "capital": "Riyadh",
+    "population_millions": 36.5,
+    "region": "Western Asia",
+    "flag": "🇸🇦",
+    "alternate_names": [
+      "Saudi Arabia",
+      "Kingdom of Saudi Arabia",
+      "KSA",
+      "Arabia"
+    ],
+    "continent_color_hint": "Arabian Peninsula, vast desert, oil-rich"
+  },
+  {
+    "name": "Singapore",
+    "lat": 1.3521,
+    "lng": 103.8195,
+    "capital": "Singapore",
+    "population_millions": 5.9,
+    "region": "Southeast Asia",
+    "flag": "🇸🇬",
+    "alternate_names": [
+      "Singapore",
+      "Republic of Singapore",
+      "Lion City"
+    ],
+    "continent_color_hint": "Southeast Asian city-state, strategic maritime hub"
+  },
+  {
+    "name": "South Korea",
+    "lat": 35.9078,
+    "lng": 127.7669,
+    "capital": "Seoul",
+    "population_millions": 51.7,
+    "region": "East Asia",
+    "flag": "🇰🇷",
+    "alternate_names": [
+      "South Korea",
+      "ROK",
+      "Republic of Korea",
+      "Korea"
+    ],
+    "continent_color_hint": "Korean Peninsula south, East Asian tech hub"
+  },
+  {
+    "name": "Sri Lanka",
+    "lat": 7.1304,
+    "lng": 79.6863,
+    "capital": "Sri Jayawardenepura Kotte",
+    "population_millions": 22.0,
+    "region": "South Asia",
+    "flag": "🇱🇰",
+    "alternate_names": [
+      "Sri Lanka",
+      "Democratic Socialist Republic of Sri Lanka",
+      "Ceylon",
+      "Lanka"
+    ],
+    "continent_color_hint": "South Asian island nation, Indian Ocean teardrop"
+  },
+  {
+    "name": "Syria",
+    "lat": 34.8021,
+    "lng": 38.9968,
+    "capital": "Damascus",
+    "population_millions": 23.0,
+    "region": "Western Asia",
+    "flag": "🇸🇾",
+    "alternate_names": [
+      "Syria",
+      "Syrian Arab Republic",
+      "Bilad al-Sham"
+    ],
+    "continent_color_hint": "Middle Eastern Levant, ancient civilization"
+  },
+  {
+    "name": "Taiwan",
+    "lat": 23.6921,
+    "lng": 120.9875,
+    "capital": "Taipei",
+    "population_millions": 23.6,
+    "region": "East Asia",
+    "flag": "🇹🇼",
+    "alternate_names": [
+      "Taiwan",
+      "Republic of China",
+      "ROC",
+      "Formosa"
+    ],
+    "continent_color_hint": "East Asian island, Pacific Rim, semiconductor hub"
+  },
+  {
+    "name": "Tajikistan",
+    "lat": 38.861,
+    "lng": 71.2767,
+    "capital": "Dushanbe",
+    "population_millions": 10.3,
+    "region": "Central Asia",
+    "flag": "🇹🇯",
+    "alternate_names": [
+      "Tajikistan",
+      "Republic of Tajikistan",
+      "Tadjikistan"
+    ],
+    "continent_color_hint": "Central Asian mountain republic, Pamir Mountains"
+  },
+  {
+    "name": "Thailand",
+    "lat": 15.87,
+    "lng": 100.9925,
+    "capital": "Bangkok",
+    "population_millions": 71.8,
+    "region": "Southeast Asia",
+    "flag": "🇹🇭",
+    "alternate_names": [
+      "Thailand",
+      "Kingdom of Thailand",
+      "Siam"
+    ],
+    "continent_color_hint": "Southeast Asian, Indochina peninsula, tropical"
+  },
+  {
+    "name": "Timor-Leste",
+    "lat": -8.8742,
+    "lng": 125.728,
+    "capital": "Dili",
+    "population_millions": 1.4,
+    "region": "Southeast Asia",
+    "flag": "🇹🇱",
+    "alternate_names": [
+      "Timor-Leste",
+      "East Timor",
+      "Democratic Republic of Timor-Leste"
+    ],
+    "continent_color_hint": "Southeast Asian island, eastern half of Timor"
+  },
+  {
+    "name": "Turkey",
+    "lat": 38.9637,
+    "lng": 35.2433,
+    "capital": "Ankara",
+    "population_millions": 85.3,
+    "region": "Western Asia",
+    "flag": "🇹🇷",
+    "alternate_names": [
+      "Turkey",
+      "Türkiye",
+      "Republic of Türkiye",
+      "Turkey"
+    ],
+    "continent_color_hint": "transcontinental, Anatolian peninsula, bridges Europe and Asia"
+  },
+  {
+    "name": "Turkmenistan",
+    "lat": 38.9697,
+    "lng": 59.5563,
+    "capital": "Ashgabat",
+    "population_millions": 6.5,
+    "region": "Central Asia",
+    "flag": "🇹🇲",
+    "alternate_names": [
+      "Turkmenistan",
+      "Turkmen",
+      "Turkmen Soviet Socialist Republic (former)"
+    ],
+    "continent_color_hint": "Central Asian, Karakum Desert, Caspian Sea proximity"
+  },
+  {
+    "name": "UAE",
+    "lat": 23.4241,
+    "lng": 53.8478,
+    "capital": "Abu Dhabi",
+    "population_millions": 10.0,
+    "region": "Western Asia",
+    "flag": "🇦🇪",
+    "alternate_names": [
+      "UAE",
+      "United Arab Emirates",
+      "Arab Emirates",
+      "Emirates"
+    ],
+    "continent_color_hint": "Arabian Peninsula, Persian Gulf coast, oil-rich federation"
+  },
+  {
+    "name": "Uzbekistan",
+    "lat": 41.3775,
+    "lng": 64.5853,
+    "capital": "Tashkent",
+    "population_millions": 35.0,
+    "region": "Central Asia",
+    "flag": "🇺🇿",
+    "alternate_names": [
+      "Uzbekistan",
+      "Republic of Uzbekistan",
+      "Uzbek"
+    ],
+    "continent_color_hint": "Central Asian steppe, Silk Road heartland, double landlocked"
+  },
+  {
+    "name": "Vietnam",
+    "lat": 14.0583,
+    "lng": 108.2772,
+    "capital": "Hanoi",
+    "population_millions": 99.5,
+    "region": "Southeast Asia",
+    "flag": "🇻🇳",
+    "alternate_names": [
+      "Vietnam",
+      "Socialist Republic of Vietnam",
+      "Viet Nam"
+    ],
+    "continent_color_hint": "Southeast Asian S-shaped peninsula, South China Sea coast"
+  },
+  {
+    "name": "Yemen",
+    "lat": 15.5527,
+    "lng": 48.5164,
+    "capital": "Sana'a",
+    "population_millions": 34.0,
+    "region": "Western Asia",
+    "flag": "🇾🇪",
+    "alternate_names": [
+      "Yemen",
+      "Republic of Yemen",
+      "Arabian Yemen"
+    ],
+    "continent_color_hint": "Arabian Peninsula south, strategic Bab el-Mandeb strait"
+  }
+]
