@@ -101,6 +101,10 @@ huggingface-cli download nvidia/Qwen3.8-27B-NVFP4 --local-dir $HOME/models/qwen3
 #    once the base image is local, plus its 8.65 GB pull; plan for 70 GB of disk (R738, 2026-09-26).
 #    DRY_RUN=1 prints the docker commands.
 bash scripts/build-served-image.sh
+#    or pull the published copy (2026-09-26: the served layers plus one label-only layer) and tag it as serve.sh expects
+docker pull ghcr.io/adrienbrault/qwen3.8-27b-rtx5090@sha256:e3b5982cc8fb0f726f6953bb524f9ebef49a4cbb8f0ac7f5fca2c27e47b8f46d
+docker tag  ghcr.io/adrienbrault/qwen3.8-27b-rtx5090@sha256:e3b5982cc8fb0f726f6953bb524f9ebef49a4cbb8f0ac7f5fca2c27e47b8f46d \
+  vllm-qwen38:v0290rc2-nvfp4kv-revival-prs-fi0616-pcieipc-bsshash-mtppcie-mtpcache-eagleshift
 
 # 3. settings: MODEL_DIR is the only required one; serve.env.example lists the others with their defaults
 cp serve.env.example serve.env
