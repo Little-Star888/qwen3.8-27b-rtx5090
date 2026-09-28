@@ -77,7 +77,7 @@ The figure draws these lines dashed over R675's decode curve (2026-09-23, result
   - Spec-Bench stays at or above R675's code line per stream up to 4 streams, and above the prose line up to 8.
 - **Conditions that differ between the two lines:**
   - Output length: 210 and 256 against 1,024 tokens, so time to first token and turnover weigh more per output token.
-  - Content: MTP τ 2.92 to 3.24 here, against R675's 0.61 to 0.68 accepted drafts per verify on code and 0.46 to 0.49 on prose.
+  - Content: MTP τ 2.92 to 3.24 here, against R675's 0.61 to 0.68 of draft tokens accepted on code and 0.46 to 0.49 on prose.
   - Prefill of arriving requests interleaved with decode.
   - Day and boot.
   - Memory clock: offset +4500 in R793. R675 did not record it, and the host's offset read 0 on both cards on 2026-09-25, before the 27B launcher began setting +4500 at every boot.

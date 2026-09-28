@@ -21,9 +21,9 @@ Nine NVFP4 checkpoints were compared on 725K dense positions and the agentic set
 - The draft length is a numerics change. Greedy continuations with 7 and 9 draft tokens diverge on 19 of 20 chunks at both 0 and 30K context, the same magnitude as fp8 versus nvfp4 KV, so a prefill-only ruler cannot rank draft lengths (`results/2026-09-04-r173b-ns-confirm`). 7 draft tokens read twice as far from the bf16 decode reference at 30K as 9 (0.0105 against 0.0052 median log-prob distance; R193d later found a per-boot draw of that size on one configuration, and R197 found that each draft length compiles its own artifact, so this reading does not rank the lengths on agreed tokens, `results/2026-09-04-r173c-bf16-decode`) and was retracted.
 - Two boots of the same configuration are bit-identical on 725K positions and on 20 greedy decode chunks, so any difference between arms is the arm (`results/2026-09-04-r168e-splitkv-bf16`, `results/2026-09-04-r168d-splitkv-ref`). Two bf16 boots differ by 0.0002 on the decode ruler.
 
-## The rulers on the served configuration, its rollback and the previous checkpoint
+## The rulers on the 2026-09-04 route and the configurations before it
 
-| vs bf16 | served since 2026-09-04 16:24 UTC: RedHatAI, nvfp4 KV, bf16 GDN state, vLLM 0.29rc2, FlashInfer 0.6.16 (`r180-pool-cost-clean`, `r183-next-levers`) | same with the fp32 GDN state, served 2026-09-04 until 16:21 UTC (`r168e`, `r180`) | rollback: RedHatAI, fp8 KV, vLLM 0.28.0 (`r156-bf16-ladder`) | RedHatAI, fp8 KV, vLLM 0.29rc2 (`r169-rc2`) | gittensor, fp8 KV, vLLM 0.28.0, served until 09-02 (`r156-bf16-ladder`) | one configuration, two boots (`r169` vs `r168e`) |
+| vs bf16 | served from 2026-09-04 16:24 UTC: RedHatAI, nvfp4 KV, bf16 GDN state, vLLM 0.29rc2, FlashInfer 0.6.16 (`r180-pool-cost-clean`, `r183-next-levers`) | same with the fp32 GDN state, served 2026-09-04 until 16:21 UTC (`r168e`, `r180`) | RedHatAI, fp8 KV, vLLM 0.28.0, served 2026-09-02 to 09-04 (`r156-bf16-ladder`) | RedHatAI, fp8 KV, vLLM 0.29rc2 (`r169-rc2`) | gittensor, fp8 KV, vLLM 0.28.0, served until 09-02 (`r156-bf16-ladder`) | one configuration, two boots (`r169` vs `r168e`) |
 |---|---|---|---|---|---|---|
 | dense top-1 agreement | 92.771% | 92.80% (92.716% in the `r180` chain) | 93.07% | 93.08% | 88.56% | 92.773% both |
 | dense perplexity delta | +0.744% | +0.75% (+0.770%) | +0.38% | +0.36% | +4.46% | +0.789% both |
@@ -33,11 +33,26 @@ Nine NVFP4 checkpoints were compared on 725K dense positions and the agentic set
 
 All measured 2026-09-01 to 2026-09-04. The fidelity cost of the served route is the NVFP4 KV cost measured in R156 and unchanged across vLLM versions: 0.3 points of top-1 agreement and 0.4 points of perplexity against bf16. The rc2 image with fp8 KV scores the same as the v0.28 fp8 daily, so the 0.29 chain itself is fidelity-neutral.
 
-The bf16 GDN state (R182) moved the dense ruler by 0.05 points of top-1 agreement in its favour and the agentic ruler by 0.1 against, in one chain with the tier wiped before each arm (`results/2026-09-04-r180-pool-cost-clean`). On the decode ruler at 30K context against a fresh bf16 reference (`results/2026-09-04-r181-ssm-bf16-ruler`, [scripts/r181-ssm-bf16-ruler.sh](../scripts/r181-ssm-bf16-ruler.sh)) the median log-prob distance on agreed tokens is 0.00576 for bf16 state against 0.00443 for fp32, with 31 chunks closer and 31 farther of 62 comparable and equal tails (p90 0.184 against 0.180).
+The bf16 GDN state (R182) moved the dense ruler by 0.05 points of top-1 agreement toward bf16 and the agentic ruler by 0.1 away from it, in one chain with the tier wiped before each arm (`results/2026-09-04-r180-pool-cost-clean`). On the decode ruler at 30K context against a fresh bf16 reference (`results/2026-09-04-r181-ssm-bf16-ruler`, [scripts/r181-ssm-bf16-ruler.sh](../scripts/r181-ssm-bf16-ruler.sh)) the median log-prob distance on agreed tokens is 0.00576 for bf16 state against 0.00443 for fp32, with 31 chunks closer and 31 farther of 62 comparable and equal tails (p90 0.184 against 0.180).
 
-## The checkpoint
+## The served checkpoint
 
-The served weights are [RedHatAI/Qwen3.8-27B-NVFP4](https://huggingface.co/RedHatAI/Qwen3.8-27B-NVFP4): W4A4 NVFP4 from llm-compressor, 303 modules kept at 8-bit, fp8 `lm_head`. [unsloth](https://huggingface.co/unsloth) and [kelnei](https://huggingface.co/kelnei) exports tie it on both rulers. The drafter is [syvai/Qwen3.8-27B-DFlash2-W4A16](https://huggingface.co/syvai/Qwen3.8-27B-DFlash2-W4A16). The gittensor checkpoint served before it cost 4.5 points of top-1 agreement on dense text and 3.4 on agentic turns, which no task benchmark in this repo detected: its GSM8K and tool-eval scores are within noise of the RedHatAI checkpoint's, and no SWE-Bench run was made on it ([R156-DECISION.md](R156-DECISION.md)).
+The served weights since 2026-09-09 are [nvidia/Qwen3.8-27B-NVFP4](https://huggingface.co/nvidia/Qwen3.8-27B-NVFP4): ModelOpt W4A4, NVFP4 group-16 on all 64 MLP layers and on the `lm_head`. It has been measured on the dense and decode rulers, not on the agentic one (2026-09-09, `results/2026-09-09-r231b-promote-nvidia`, [R231](../bench/results/r231-promote-nvidia.md)):
+
+| vs bf16 | NVIDIA, served since 2026-09-09 | RedHatAI, the rollback |
+|---|---:|---:|
+| dense top-1 agreement | 90.67% | 92.79% |
+| dense perplexity delta | +1.83% | +0.83% |
+| dense truncated KL | 0.0226 | 0.0143 |
+| decode ruler, median absolute log-prob delta, no context / 30K | 0.00046 / 0.00516 | 0.00056 / 0.00592 ([R207](../bench/results/r207-promote-mtp.md)) |
+
+The dense gap, 2.12 points of top-1 agreement and 1.0 point of perplexity, is about seven times the 0.10–0.15 % perplexity difference between two boots of one configuration. The decode ruler places both inside the 0.0051 to 0.0062 band at 30K. SWE-Bench Verified reads 387/500 on NVIDIA against 386 to 388 for three other checkpoints ([R231](../bench/results/r231-promote-nvidia.md)), so the task benchmark does not rank them; the rulers do.
+
+The agentic-ruler figure the README lists under earlier configurations (top-1 95.63 %, perplexity +2.67 %, 2026-09-06, [R206](../bench/results/r206-mtp-vs-dflash-paired.md)) was measured on the RedHatAI checkpoint.
+
+## The checkpoints before it
+
+[RedHatAI/Qwen3.8-27B-NVFP4](https://huggingface.co/RedHatAI/Qwen3.8-27B-NVFP4), served from 2026-09-02 to 09-09 and the rollback: W4A4 NVFP4 from llm-compressor, 303 modules kept at 8-bit, fp8 `lm_head`. [unsloth](https://huggingface.co/unsloth) and [kelnei](https://huggingface.co/kelnei) exports tie it on both rulers. The drafter served with it until 2026-09-06 is [syvai/Qwen3.8-27B-DFlash2-W4A16](https://huggingface.co/syvai/Qwen3.8-27B-DFlash2-W4A16). The gittensor checkpoint served before it cost 4.5 points of top-1 agreement on dense text and 3.4 on agentic turns, which no task benchmark in this repo detected: its GSM8K and tool-eval scores are within noise of the RedHatAI checkpoint's, and no SWE-Bench run was made on it ([R156-DECISION.md](R156-DECISION.md)).
 
 ## Comparing two engines: the determinism protocol (2026-09-05, R193 to R193d)
 

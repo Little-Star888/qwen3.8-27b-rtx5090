@@ -18,7 +18,7 @@ The served launcher (R231/R234 configuration: nvidia/Qwen3.8-27B-NVFP4, NVFP4 KV
 | 12 | 2,097.6 | 174.8 | 1,729.5 | 144.1 |
 | 16 | 2,442.5 | 152.7 | 2,085.6 | 130.3 |
 
-MTP accepted 0.61 to 0.68 drafts per verify on code and 0.46 to 0.49 on prose at every concurrency.
+MTP accepted 0.61 to 0.68 of its draft tokens on code and 0.46 to 0.49 on prose at every concurrency (accepted over drafted tokens, from the server's counters).
 
 R234 measured 1, 8 and 16 streams on the same configuration on 2026-09-09 with two runs per shape: code 216 / 1,476 / 2,596 and prose 164 / 1,267 / 2,183 tokens per second. The 16-stream code figure is 5.9 % lower here, and R675's spread at that shape is 2,403.5 to 2,501.2.
 
@@ -49,4 +49,4 @@ The three prompts at each length agree to 0.1 s. The rate falls with length beca
 | 120,000 | 196.0 | 158.7 |
 | 200,000 | 184.6 | 150.6 |
 
-Code decodes at the same rate to 60,000 and 13 % slower at 200,000. R234's prose row at `--ctx 30000` read 157.6 with an acceptance of 0.41 drafts per verify, and R675's reads 178.7 at 0.55. The prompts differ between the two runs (per-run seed prefix), so the prose rate at depth moves with the drafts the text admits, not only with depth.
+Code decodes at the same rate to 60,000 and 13 % slower at 200,000. R234's prose row at `--ctx 30000` read 157.6 with 0.41 of the draft tokens accepted, and R675's reads 178.7 at 0.55. The prompts differ between the two runs (per-run seed prefix), so the prose rate at depth moves with the drafts the text admits, not only with depth.

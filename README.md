@@ -1,77 +1,61 @@
 # Qwen3.8-27B on RTX 5090
 
-Serving configuration, vLLM patches, launch scripts and measurements for running [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) on one or two RTX 5090 cards with 262K context. The target workload is a few concurrent coding agents with long contexts, plus interactive chat with vision, reasoning, tool calling and structured output all enabled.
+Serving configuration, vLLM patches, launch scripts and measurements for [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B), served as [nvidia/Qwen3.8-27B-NVFP4](https://huggingface.co/nvidia/Qwen3.8-27B-NVFP4) by [vLLM](https://github.com/vllm-project/vllm) v0.29.0rc2 with the patch chain in [patches-v0290/](patches-v0290/) across two RTX 5090 cards. The window is 262,144 tokens, the KV cache is NVFP4, the checkpoint's own MTP head drafts 3 tokens, and vision, reasoning, tool calls and structured output are all on. The target workload is a few concurrent coding agents with long contexts. The one-card and older shapes are under [Other configurations](#other-configurations).
 
-Every number in this repo was measured on one machine on the date given, and the raw results directory is named next to it. None is an estimate.
+Every number here was measured on one machine on the date given, and each links the write-up that names its raw results directory. None is an estimate. The index of experiments is [bench/RESULTS.md](bench/RESULTS.md), newest first.
 
 ## Numbers
 
-The served configuration since 2026-09-09 ([R231/R234](bench/results/r231-promote-nvidia.md)): two RTX 5090, [nvidia/Qwen3.8-27B-NVFP4](https://huggingface.co/nvidia/Qwen3.8-27B-NVFP4) weights, [vLLM](https://github.com/vllm-project/vllm) 0.29 with an NVFP4 KV cache pinned at 14.86 GB per card, the checkpoint's own MTP head at 3 draft tokens, FlashInfer's `pcie_ipc` all-reduce as the two-card decode all-reduce (patch 0138) and vLLM's batch-sharded sampling (patch 0147), launcher [scripts/serve-r231-nvidia-daily.sh](scripts/serve-r231-nvidia-daily.sh). Each row links its write-up in [bench/RESULTS.md](bench/RESULTS.md), which names the raw results directory on the serving host and the driver script.
-
-The figures below are drawn by [bench/plot.py](bench/plot.py) from raw records in this repository. In this one the solid lines are a single boot of the served launcher ([R675](bench/results/r675-27b-curves.md), 2026-09-23, results `2026-09-23-r675-27b-curves`): decode is [scripts/decode_ss.py](scripts/decode_ss.py), greedy, 1,024 forced tokens per stream, three runs per shape, the rate taken over the samples where every stream was decoding. The dashed lines are vLLM's serving benchmark `vllm bench serve` v0.30.0 on ShareGPT V3 and Spec-Bench against the same launcher ([R793](bench/results/r793-27b-std-bench.md), 2026-09-28, results `2026-09-28-r793-27b-std-bench-1608`), a fresh boot per cell and the mean of two passes. Its aggregate is output tokens over wall-clock time, prefill, time to first token and turnover between requests included, and its per-stream rate is 1000 / TPOT p50. At 16 streams the dashed lines read 1,330 (ShareGPT) and 1,628 (Spec-Bench) tok/s and 97 and 111 per stream. R793 ran at memory clock offset +4500; R675 did not record its offset. The lines differ in output length and prompts as well as in interleaved prefill, so the gap between them is not a prefill cost ([R793](bench/results/r793-27b-std-bench.md)).
+Decode on the served launcher [scripts/serve-r231-nvidia-daily.sh](scripts/serve-r231-nvidia-daily.sh), image `vllm-qwen38:v0290rc2-nvfp4kv-revival-prs-fi0616-pcieipc-bsshash-mtppcie-mtpcache-eagleshift`, one boot at stock power limits, measured 2026-09-23 11:33 to 11:51 UTC ([R675](bench/results/r675-27b-curves.md), results `2026-09-23-r675-27b-curves`; the memory clock offset was not recorded): [scripts/decode_ss.py](scripts/decode_ss.py), greedy, one code and one prose prompt, 1,024 forced tokens per stream, all streams starting together, three runs per shape. Rates are tokens per second per stream over the samples where every stream was decoding; the aggregate is the sum over the streams running together. Method: [How the numbers are measured](#how-the-numbers-are-measured).
 
 ![Decode alone (R675, solid) and vllm bench serve on ShareGPT V3 and Spec-Bench (R793, dashed), sum over streams and per stream](docs/img/decode-scaling-16.svg)
 
-- `min_tokens` forces each output to the ShareGPT reference reply's length or to 256 tokens with thinking on, so the outputs are truncated reasoning, not answers. Every cell had 0 failed requests and 0 cached prompt tokens at the stock 600 / 575 W limits, and passes A and B agree within 1.04 % in every cell ([R793](bench/results/r793-27b-std-bench.md)).
-- ShareGPT at 6 streams comes from a re-run of that one pair (R793b, same day, results `2026-09-28-r793b-27b-c6-1905`): in R793 its two passes differed by 3.17 %, above the round's 3 % rule, and the re-run's 829.8 / 835.7 tok/s replaced the cell under a rule fixed before it was read ([R793](bench/results/r793-27b-std-bench.md#sharegpt-at-6-streams-comes-from-a-re-run-of-that-pair)).
+Solid lines: decode alone, the curve described above. Dashed lines: vLLM's serving benchmark `vllm bench serve` v0.30.0 on ShareGPT V3 and Spec-Bench against the same launcher ([R793](bench/results/r793-27b-std-bench.md), 2026-09-28, results `2026-09-28-r793-27b-std-bench-1608` and `2026-09-28-r793b-27b-c6-1905`), a fresh boot per cell and the mean of two passes. Requests arrive as others finish, so their prefill interleaves with the running streams' decode; the aggregate is wall-clock output tok/s and its per-stream rate is 1000 / TPOT p50 ([Standard benchmark](#standard-benchmark-vllm-bench-serve)).
 
-Aggregate throughput keeps rising to the served limit of 16 sequences: 2,443 t/s of code, 153 per stream. The MTP head accepts 0.61–0.68 drafts per verify on code and 0.46–0.49 on prose at every concurrency.
-
-The same probe on a boot with the served sequence limit raised to 64 ([R206c](bench/results/r206c-mtp-c32-c64.md), 2026-09-06, RedHatAI checkpoint, 13.98 GB pin — a different configuration, so its own figure):
-
-![Decode rate against concurrency on the seq-64 boot, aggregate and per stream](docs/img/decode-scaling-64.svg)
-
-The aggregate reaches 4,497 t/s of code at 64 streams, 70 per stream, with about 2.9K tokens of context left per request — longer requests queue.
-
-From the same R675 boot, cold prefill ([scripts/kv_capacity_probe.py](scripts/kv_capacity_probe.py), three salted prompts per length, counted by the server) and one-stream decode on top of filler context:
+- The aggregate rises at every step to the served limit of 16 sequences: 2,443 t/s of code and 2,086 of prose at 16 streams, 153 and 130 per stream. One stream decodes 212.5 t/s of code and 169.1 of prose ([R675](bench/results/r675-27b-curves.md)).
+- The rates depend on how many draft tokens the MTP head gets accepted, which depends on the text: 0.61 to 0.68 of the draft tokens on code and 0.46 to 0.49 on prose at every concurrency ([R675](bench/results/r675-27b-curves.md)), 2.92 to 2.96 tokens per verify step on ShareGPT and 3.22 to 3.24 on Spec-Bench ([R793](bench/results/r793-27b-std-bench.md)).
+- On the standard benchmark at 16 streams the server delivers 1,330 (ShareGPT) and 1,628 (Spec-Bench) output tok/s, 97 and 111 per stream; time to the first token p50 is 42 to 44 ms at 1 stream and 176 ms at 16 ([R793](bench/results/r793-27b-std-bench.md)).
 
 ![Cold prefill rate and decode rate at depth against prompt length](docs/img/prefill.svg)
 
-Cold prefill starts at 8,365 t/s and falls to 3,958 at 200K prompt tokens, because every full-attention layer reads the whole prefix for each chunk. Decode on an already-prefilled context holds its rate to 60K and reads 13 % lower at 200K.
+Cold prefill on the same boot runs at 8,365 t/s at 6.7K prompt tokens and 3,958 at 200K, because every full-attention layer reads the whole prefix for each chunk ([R675](bench/results/r675-27b-curves.md), [scripts/kv_capacity_probe.py](scripts/kv_capacity_probe.py), prompt tokens counted by the server). One stream decoding on top of filler context holds its code rate to 60K and reads 13 % lower at 200K.
 
 | | value | source |
 |---|---|---|
-| context length | 262,144 tokens | checkpoint |
-| KV pool on the GPUs | 1,391,795 tokens, pinned at 14.86 GB per card, 16 sequences | 2026-09-09, [R234](bench/results/r231-promote-nvidia.md) |
+| context window | 262,144 tokens | checkpoint |
+| KV pool on the GPUs | 1,391,795 tokens, NVFP4, pinned at 14.86 GB per card, 16 sequences | 2026-09-09, [R234](bench/results/r231-promote-nvidia.md) |
+| free VRAM after boot | 3,351 MiB per card | 2026-09-23, [R675](bench/results/r675-27b-curves.md) |
 | KV tiers behind the pool | 16 GiB host RAM, then 300 GB of disk with LRU eviction, kept across restarts | 2026-09-05, [R189](bench/results/r189-promote-pcie-ipc.md) |
-| concurrent requests the pool admits | 74 by the state-copy pricing, 64 measured with no preemptions; 17,584 tokens-equivalent per running request | 2026-09-06, [R206c](bench/results/r206c-mtp-c32-c64.md); 2026-09-05, [R200](bench/results/r200-c32-c64-pool-cost.md) |
 | TTFT, cold prompt | 0.8 / 3.0 / 17.5 / 50.6 s at 6.7K / 25K / 100K / 200K prompt tokens | 2026-09-23, [R675](bench/results/r675-27b-curves.md) |
-| aggregate prefill under concurrency | 9.0K t/s at 16, 32 and 64 streams, 2K and 8K prompts | 2026-09-05, [R200](bench/results/r200-c32-c64-pool-cost.md) |
 | [SWE-Bench Verified](https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified), [mini-SWE-agent](https://github.com/SWE-agent/mini-swe-agent) 2.4.6, one attempt | 387/500 = 77.4 % | 2026-09-09, [R231](bench/results/r231-promote-nvidia.md), results `2026-09-09-r227-miniswe-nvidia` |
 | [tool-eval](https://github.com/SeraphimSerapis/tool-eval-bench), 69 × 4 | 88.5 ± 0.6 and 90.5 ± 3.7, two runs | 2026-09-09, [R231/R234](bench/results/r231-promote-nvidia.md) |
-| GSM8K cot zero-shot ([lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)), n=120, temperature 0 | 0.85 ± 0.03 | 2026-09-04, [R177](bench/results/r168-029-program.md#r177-the-served-route-at-16-sequences-on-the-r142-matrix-instrument-2026-09-04-results2026-09-04-r177-matrix-scriptsr177-matrixsh) |
 | fidelity vs the [bf16 model](https://huggingface.co/Qwen/Qwen3.8-27B), dense text, 555,549 positions | top-1 90.67 %, perplexity +1.83 %, truncated KL 0.0226 | 2026-09-09, [R231](bench/results/r231-promote-nvidia.md) |
-| fidelity vs the bf16 model, agentic turns, 57,972 positions | top-1 95.63 %, perplexity +2.67 % | 2026-09-06, [R206](bench/results/r206-mtp-vs-dflash-paired.md), RedHat checkpoint |
+| fidelity vs the bf16 model, greedy decode | median absolute log-prob delta 0.00046 at no context, 0.00516 at 30K | 2026-09-09, [R231](bench/results/r231-promote-nvidia.md) |
 
-Conditions behind the table:
+Also passing (2026-09-09, [R231/R234](bench/results/r231-promote-nvidia.md)): needles at 131K and 220K prompt tokens, 4 of 4 cold and 4 of 4 from the disk tier after a flood of 19 unrelated 90K prompts; five concurrent 120K prompts resident at 58.8 % of the pool with no preemptions; one 250K prompt; an indentation probe with 59 of 60 answers indented.
 
-- The served sequence limit is 16. The second decode figure comes from a port-8029 boot with the limit raised, on the checkpoint served before 2026-09-09. Above 40 sequences that boot needs `max_cudagraph_capture_size` capped at 320, and at 64 sequences each request has about 2.9K tokens of context, so long prompts queue ([R206c](bench/results/r206c-mtp-c32-c64.md)).
-- The pool size follows the pin, not the weights. Memory did not limit higher pins; the warmup failure rate did, and it rises with the pin: 15.90 GB booted 2 of 3 times and 16.90 GB 1 of 3, both with more than 1,371 MiB free under load ([R234](bench/results/r231-promote-nvidia.md)).
-- The MTP head accepts 0.65–0.68 drafts on code against 0.38–0.42 for the DFlash2 drafter it replaced. At its promotion the single-stream rows fell and the concurrent rows rose ([R207](bench/results/r207-promote-mtp.md)).
-- The agentic-fidelity row was measured on the RedHat checkpoint. The served NVIDIA checkpoint has been measured on the dense ruler only: 2.12 points of top-1 below RedHat and +1.0 % perplexity, about seven times the 0.10–0.15 % two-boot noise floor ([R231](bench/results/r231-promote-nvidia.md), [docs/FIDELITY.md](docs/FIDELITY.md)).
-- No task benchmark in this repo separated the [gittensor](https://huggingface.co/gittensor-model-hub/Qwen3.8-27B-NVFP4-RTX5090-LMHead4) checkpoint (served until 2026-09-02) from RedHat's, though its top-1 agreement with bf16 is 4.5 points lower. SWE-Bench Verified reads 386 to 388 of 500 on four checkpoints that span the whole fidelity range. The fidelity rulers decide checkpoints ([docs/FIDELITY.md](docs/FIDELITY.md), [R231](bench/results/r231-promote-nvidia.md)).
-- GSM8K and the 2K prefill figure were scored with the fp32 linear-attention state, before the state was cached in bf16 on 2026-09-04 ([R182](bench/results/r168-029-program.md#r182-the-gdn-state-cached-in-bf16-promoted-pool-1020596-tiers-needles-tool-eval-2026-09-04-results2026-09-04-r182-promote-ssm-bf16-scriptsr182-promote-ssm-bf16sh)). The two states are 0.05 points of top-1 apart on dense text and 0.1 on agentic turns ([docs/FIDELITY.md](docs/FIDELITY.md)). The earlier DFlash2 route with the fp32 state scored 388/500 on SWE-Bench Verified (2026-09-04, [R175](bench/results/r168-029-program.md#r175-swe-bench-verified-on-the-served-route-388500--776-paired-with-the-fp8-shape-2026-09-04-results2026-09-02-miniswe-rh-r174-nvfp4-scriptsminiswe-fullsh)).
-- The two tool-eval intervals overlap. The per-trial scores were [123, 122, 123, 122] and [127, 131, 122, 120], so one run of this benchmark does not establish a gap of that size on this stack ([R231/R234](bench/results/r231-promote-nvidia.md)).
+## Served configuration
+
+- Since 2026-09-09 ([R231/R234](bench/results/r231-promote-nvidia.md)): weights [nvidia/Qwen3.8-27B-NVFP4](https://huggingface.co/nvidia/Qwen3.8-27B-NVFP4), image `vllm-qwen38:v0290rc2-nvfp4kv-revival-prs-fi0616-pcieipc-bsshash-mtppcie-mtpcache-eagleshift` (vLLM v0.29.0rc2, [patches-v0290/](patches-v0290/) 0101 to 0158, FlashInfer 0.6.16.post3), port 8020. Launcher [scripts/serve-r231-nvidia-daily.sh](scripts/serve-r231-nvidia-daily.sh); [scripts/serve.sh](scripts/serve.sh) starts the same engine with the host paths as settings. Rollback: [scripts/serve-r207-mtp-daily.sh](scripts/serve-r207-mtp-daily.sh), the same route on [RedHatAI/Qwen3.8-27B-NVFP4](https://huggingface.co/RedHatAI/Qwen3.8-27B-NVFP4) at a 13.98 GB pin ([R207](bench/results/r207-promote-mtp.md)). Each promotion is a row in [docs/HISTORY.md](docs/HISTORY.md), and every flag is explained in [docs/CONFIG.md](docs/CONFIG.md).
+- Tensor parallel 2, 16 sequences, 262,144-token window, NVFP4 KV pinned at 14.86 GB per card (`--kv-cache-memory-bytes`), linear-attention state cached in bf16.
+- The checkpoint's MTP head at 3 draft tokens (`qwen3_5_mtp`).
+- FlashInfer's `pcie_ipc` all-reduce as the two-card decode all-reduce (patch 0138, `VLLM_SM12X_PCIE_IPC_AR=1`; patch 0148 admits the MTP head to it) and batch-sharded sampling (`--enable-batch-sharded-sampling`, patch 0147).
+- KV tiers: 16 GiB of pinned host RAM, then a 300 GB disk tier with LRU eviction and a 40 GB free-space floor.
 
 ## What the stack is
 
-- **Weights**: [nvidia/Qwen3.8-27B-NVFP4](https://huggingface.co/nvidia/Qwen3.8-27B-NVFP4), served since 2026-09-09 ([R231](bench/results/r231-promote-nvidia.md)).
-  - A ModelOpt 0.47.0.dev80 checkpoint: NVFP4 group-16 on all 64 MLP layers, an NVFP4 `lm_head`, and an input scale on all 401 quantized layers, so activations are quantized too (W4A4). It declares no KV quantization; the KV dtype is the launcher's.
-  - Against bf16 on dense text it reads +1.83 % perplexity, where the [RedHatAI checkpoint](https://huggingface.co/RedHatAI/Qwen3.8-27B-NVFP4) it replaced reads +0.83 %. It was promoted with that gap known: pool identical, decode −4.1 % to −0.1 % on a paired A/B, SWE-Bench Verified 387/500 against 386–388 for three other checkpoints (2026-09-09, [R231](bench/results/r231-promote-nvidia.md)).
-  - The RedHatAI checkpoint (W4A4 from [llm-compressor](https://github.com/vllm-project/llm-compressor), 303 modules kept at 8 bit, fp8 `lm_head`) served from 2026-09-02 to 09-09 and is the rollback. A bf16-anchored fidelity ladder over nine NVFP4 checkpoints chose it; the quantizer recipe mattered more than the bit width ([docs/FIDELITY.md](docs/FIDELITY.md), [docs/R156-DECISION.md](docs/R156-DECISION.md)).
+- **Weights**: [nvidia/Qwen3.8-27B-NVFP4](https://huggingface.co/nvidia/Qwen3.8-27B-NVFP4), a ModelOpt 0.47.0.dev80 checkpoint: NVFP4 group-16 on all 64 MLP layers, an NVFP4 `lm_head`, and an input scale on all 401 quantized layers, so activations are quantized too (W4A4). It declares no KV quantization; the KV dtype is the launcher's. Its distance from bf16 is in the table above and in [docs/FIDELITY.md](docs/FIDELITY.md).
 - **Engine**: [vLLM v0.29.0rc2](https://github.com/vllm-project/vllm/releases) with the [patches-v0290/](patches-v0290/) chain (0101 to 0158).
   - NVFP4 KV on `sm_120`, which upstream gates to SM100.
   - A pooled FlashInfer workspace, prefix-cache reuse under speculative decoding, the embedding table in pinned host RAM.
   - LRU eviction for the disk tier, which upstream lacks.
   - FlashInfer main's `pcie_ipc` all-reduce as the two-card decode all-reduce, vendored as patch 0138 behind `VLLM_SM12X_PCIE_IPC_AR=1` and asserted at boot; served since 2026-09-05 ([R185](bench/results/r185-pcie-ipc-all-reduce.md)). Patch 0148 admits the MTP head to it.
   - Patches 0152, 0154 to 0156 and 0158 make the prefix cache and the offload tiers hit under the MTP head, including the linear-attention state blocks ([THIRD_PARTY.md](THIRD_PARTY.md)).
-  - [FlashInfer](https://github.com/flashinfer-ai/flashinfer) pinned at 0.6.16.post3, because 0.6.18 drops decode at 30K context from 143 to 26.5 t/s ([scripts/r168-deep-decode.sh](scripts/r168-deep-decode.sh)).
-  - vLLM's `--enable-batch-sharded-sampling`, served since 2026-09-05, with patch 0147 so the flag does not fork the compile artifact. At temperature 0 it is bitwise identical to the unsharded sampler on one artifact ([R193e](bench/results/r193e-pin-and-bss.md)), and it adds 2.6 % steps per second at 8 streams and 4.5 % at 16. A request that passes a seed at temperature above 0 draws a different sample stream than before.
-  - [scripts/build-served-image.sh](scripts/build-served-image.sh) builds the served image from [patches-v0290/](patches-v0290/) as nine layers, in this order: `Dockerfile` (the vLLM v0.29.0rc2 wheel over a vLLM nightly, 0101 to 0113), `Dockerfile.revival`, `Dockerfile.prs`, `Dockerfile.fiswap` (FlashInfer 0.6.16.post3), `Dockerfile.pcieipc`, `Dockerfile.bss-not-a-compile-factor`, `Dockerfile.pcie-mtp`, `Dockerfile.mtp-cache`, `Dockerfile.mtp-eagle-shift`. The nightly is pinned by digest: its tag was no longer on Docker Hub on 2026-09-25, and the digest still resolved. Each patch has a design note next to its diff and a provenance line in [THIRD_PARTY.md](THIRD_PARTY.md).
-- **Speculative decoding**: the checkpoint's own MTP head, 3 draft tokens, since 2026-09-06 ([R207](bench/results/r207-promote-mtp.md)).
-  - Before that, [syvai/Qwen3.8-27B-DFlash2-W4A16](https://huggingface.co/syvai/Qwen3.8-27B-DFlash2-W4A16) in CUDA graphs at tensor-parallel 2 ([DFlash2](https://inco.ai/blog/dflash2/), [vLLM PR #52816](https://github.com/vllm-project/vllm/pull/52816)), at 9 draft tokens from 2026-09-04 and 7 from 2026-09-05.
-  - 7 was first rejected on 2026-09-04 because it read twice as far from the bf16 decode reference as 9 ([scripts/r173c-bf16-decode.sh](scripts/r173c-bf16-decode.sh)). R193d found a difference of that size between two boots of one configuration, caused by the per-boot Triton autotune. The 2026-09-05 ladder over 6 to 11 draft tokens then put 7 at +10 % to +23 % tokens per second at 8 and 16 streams against 9, for −11 % on single-stream code ([R197](bench/results/r197-spec-length-ladder.md)).
-- **KV cache**: NVFP4 KV, +43 % pool over fp8 at the same VRAM, for 0.4 points of perplexity.
+  - [FlashInfer](https://github.com/flashinfer-ai/flashinfer) pinned at 0.6.16.post3 ([R168](bench/results/r168-029-program.md)).
+  - vLLM's `--enable-batch-sharded-sampling`, with patch 0147 so the flag does not fork the compile artifact ([R193e](bench/results/r193e-pin-and-bss.md)).
+  - [scripts/build-served-image.sh](scripts/build-served-image.sh) builds the served image from [patches-v0290/](patches-v0290/) in nine layers; each patch has a design note next to its diff and a provenance line in [THIRD_PARTY.md](THIRD_PARTY.md).
+- **Speculative decoding**: the checkpoint's own MTP head, 3 draft tokens, since 2026-09-06 ([R207](bench/results/r207-promote-mtp.md)). The DFlash2 drafter served before it is in [docs/HISTORY.md](docs/HISTORY.md).
+- **KV cache**: NVFP4 KV ([docs/HISTORY.md](docs/HISTORY.md#2026-09-04-the-vllm-029-nvfp4-kv-route-and-the-bf16-gdn-state), [docs/FIDELITY.md](docs/FIDELITY.md)).
   - The sm120 port is in [patches-v0290/](patches-v0290/), provenance in [THIRD_PARTY.md](THIRD_PARTY.md).
   - The pool is pinned in bytes, 14.86 GB per card since R234, so every boot has the same size ([R178](bench/results/r168-029-program.md#r178-the-concurrency-ceiling-is-the-kv-pool-what-a-request-costs-of-it-2026-09-04-results2026-09-04-r178-seqs-ladder-scriptsr178-seqs-laddersh-scriptskv_capacity_probepy)).
   - The linear-attention state is cached in bf16 ([R182](bench/results/r168-029-program.md#r182-the-gdn-state-cached-in-bf16-promoted-pool-1020596-tiers-needles-tool-eval-2026-09-04-results2026-09-04-r182-promote-ssm-bf16-scriptsr182-promote-ssm-bf16sh)).
@@ -80,13 +64,27 @@ Conditions behind the table:
   - It asserts the image, the vLLM and FlashInfer versions, the store overlay, the drafter graphs, the pool size, free VRAM after pre-warm and the tier state.
   - [docs/CONFIG.md](docs/CONFIG.md) explains every flag and what breaks without it.
 
+## How the numbers are measured
+
+- **Decode** ([R675](bench/results/r675-27b-curves.md), [scripts/r675-27b-curves.sh](scripts/r675-27b-curves.sh)): `decode_ss.py` starts all streams together on one code or one prose prompt, forces 1,024 tokens per stream at temperature 0, and takes the rate over the samples where every stream was decoding, median of three runs. Acceptance is accepted draft tokens over draft tokens from the server's counters. At depth, `--ctx N` puts N/1.3 filler words in front of the prompt; the probe does not record the prompt's token count, so the figure plots those points against N, two runs per point.
+- **Prefill** ([R675](bench/results/r675-27b-curves.md)): `kv_capacity_probe.py --conc 1 --tokens 1`, one request at a time with one output token, three prompts per length, each with a fresh seed so that neither the GPU prefix cache nor the CPU and disk tiers hold it.
+- **Power and clocks**: both rounds ran at the stock 600 / 575 W limits. R793 ran at memory clock offset +4500 and core offset 0, read back at boot and after each cell; R675 did not record the offset, and the host's offset read 0 on both cards on 2026-09-25 ([R793](bench/results/r793-27b-std-bench.md#against-the-decode-curve-r675)).
+
+### Standard benchmark (vllm bench serve)
+
+- **Client** ([R793](bench/results/r793-27b-std-bench.md), [scripts/r793-27b-std-bench.sh](scripts/r793-27b-std-bench.sh)): `vllm bench serve` v0.30.0 through the request shim of the Flash-Next repository, closed loop at 1, 2, 4, 6, 8, 12 and 16 concurrent requests, greedy, streamed, thinking on.
+- **Samples**: ShareGPT V3, 400 conversations, seed 7310, each output forced with `min_tokens` to the reference reply's length (mean 210 tokens); Spec-Bench, all 480 questions, each output forced to 256 tokens. The outputs are truncated reasoning, not answers.
+- **Cells**: a fresh boot per cell, pass A over all 14 cells and then pass B, a cell being the mean of the two. Every cell had 0 failed requests and 0 cached prompt tokens, and the passes agree within 1.04 %. ShareGPT at 6 streams comes from a re-run of that pair on the same day ([R793b](bench/results/r793-27b-std-bench.md#sharegpt-at-6-streams-comes-from-a-re-run-of-that-pair)).
+- **Metrics**: output tok/s is completion tokens over the time from the first request's start to the last completion, with prefill, time to first token and turnover between requests included. The per-stream rate is 1000 / TPOT p50, where TPOT includes the steps a request waits while other requests' prefill chunks run.
+- **Against the decode curve**: the two lines differ in output length, prompts, interleaved prefill, day and memory clock offset, so the gap between them is not a measure of what prefill costs decode ([R793](bench/results/r793-27b-std-bench.md#against-the-decode-curve-r675)).
+
 ## Hardware
 
 - Host: ASRock X870 Taichi Creator, Ryzen 7 9800X3D, 64 GB DDR5-6000, Ubuntu 24.04 HWE.
 - GPUs: two RTX 5090 32 GB (`sm_120`), PCIe Gen5 x8/x8.
   - ASUS at 600 W and HP OEM at 575 W stock. `nvidia-smi -pl` accepts nothing below 400 W on either card. A 400 W cap costs nothing measurable on decode, which draws 350 W per card at the served concurrency ceiling, and about 10 % on deep prefill, the one workload above it ([GPU power limits](bench/results/r208-gpu-power-limits.md)). Both cards run at 400 W while the served configuration is up; every measurement in this repo was taken at the stock limits.
   - NVIDIA driver 610.57.04 with the [QuixiAI open kernel modules](https://github.com/QuixiAI/open-gpu-kernel-modules) for GPU peer-to-peer ([scripts/gpu-p2p-610.sh](scripts/gpu-p2p-610.sh)).
-  - Memory clock offset +4500 MHz on both cards, core clock stock ([scripts/gpu-tune.sh](scripts/gpu-tune.sh)), worth about 4% decode. All throughput numbers include it.
+  - Memory clock offset +4500 MHz on both cards, core clock stock ([scripts/gpu-tune.sh](scripts/gpu-tune.sh)); it raised TP=2 decode by about 4 % on 2026-08-31 ([R136-R138](bench/results/r136-r138-tp2-tuning.md), [docs/DESIGN.md](docs/DESIGN.md)). Each round records whether it ran with the offset; R675 did not ([How the numbers are measured](#how-the-numbers-are-measured)).
 - Storage: one Gen5 x4 NVMe for the model weights and a 393 GB loopback image for the KV disk tier.
 
 The one-card configuration ran on this host before the second card was added. Its host RAM requirement was not measured. Its container is capped at 52 GB (`--memory`), including a 4 GiB CPU KV staging buffer, and the peak is the first boot's kernel JIT, which took all 64 GB once before compile-job caps and persisted caches bounded it ([docs/CONFIG.md](docs/CONFIG.md)).
@@ -99,7 +97,7 @@ Requirements: x86_64 Linux, two RTX 5090, Docker with the NVIDIA container runti
 # 1. the served weights
 huggingface-cli download nvidia/Qwen3.8-27B-NVFP4 --local-dir $HOME/models/qwen3.8-27b-nvidia-nvfp4
 
-# 2. the served image: vLLM v0.29.0rc2 + patches-v0290 + FlashInfer 0.6.16.post3, the nine layers listed
+# 2. the served image: vLLM v0.29.0rc2 + patches-v0290 + FlashInfer 0.6.16.post3, the nine layers of scripts/build-served-image.sh
 #    under "Engine". Needs Docker BuildKit (buildx, docker driver); the GPU is not used. About 10 minutes
 #    once the base image is local, plus its 8.65 GB pull; plan for 70 GB of disk (R738, 2026-09-26).
 #    DRY_RUN=1 prints the docker commands.
@@ -166,6 +164,25 @@ The first three columns were measured on 2026-08-31 on the [gittensor](https://h
 
 DFlash2 accepts few draft tokens per step, so its decode is bound by weight bandwidth, which the second card doubles. MTP accepts more per step and amortizes the weight reads, so on MTP the second card adds KV space more than speed. Tool-eval does not separate the three shapes; the bf16 rulers separate them by KV dtype ([docs/FIDELITY.md](docs/FIDELITY.md)).
 
+### Measured on earlier configurations of the served route
+
+These rows were measured on the vLLM 0.29 route before the NVIDIA checkpoint and the 14.86 GB pin, and have not been repeated on the served configuration. Each names its configuration.
+
+The steady-state decode probe on a port-8029 boot with the sequence limit raised to 64 ([R206c](bench/results/r206c-mtp-c32-c64.md), 2026-09-06, results `2026-09-06-r206c-mtp-c32c64-v2`; MTP at 3 draft tokens, RedHatAI checkpoint, 13.98 GB pin):
+
+![Decode rate against concurrency on the seq-64 boot, aggregate and per stream](docs/img/decode-scaling-64.svg)
+
+The aggregate reaches 4,497 t/s of code at 64 streams, 70 per stream. Above 40 sequences that boot needs `max_cudagraph_capture_size` capped at 320, and at 64 sequences each request has about 2.9K tokens of context, so longer requests queue ([R206c](bench/results/r206c-mtp-c32-c64.md)).
+
+| | value | configuration | source |
+|---|---|---|---|
+| concurrent requests the pool admits | 74 by the state-copy pricing, 64 measured with no preemptions; 17,584 tokens-equivalent per running request | MTP at 3 draft tokens, RedHatAI, 13.98 GB pin, 64 sequences | 2026-09-06, [R206c](bench/results/r206c-mtp-c32-c64.md); 2026-09-05, [R200](bench/results/r200-c32-c64-pool-cost.md) |
+| aggregate prefill under concurrency | 9.0K t/s at 16, 32 and 64 streams, 2K and 8K prompts | DFlash2 at 7 draft tokens, RedHatAI, 13.98 GB pin | 2026-09-05, [R200](bench/results/r200-c32-c64-pool-cost.md) |
+| GSM8K cot zero-shot ([lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)), n=120, temperature 0 | 0.85 ± 0.03 | DFlash2, RedHatAI, fp32 linear-attention state | 2026-09-04, [R177](bench/results/r168-029-program.md#r177-the-served-route-at-16-sequences-on-the-r142-matrix-instrument-2026-09-04-results2026-09-04-r177-matrix-scriptsr177-matrixsh) |
+| fidelity vs the bf16 model, agentic turns, 57,972 positions | top-1 95.63 %, perplexity +2.67 % | MTP at 3 draft tokens, RedHatAI | 2026-09-06, [R206](bench/results/r206-mtp-vs-dflash-paired.md) |
+
+The fp32 and bf16 linear-attention states are 0.05 points of top-1 apart on dense text and 0.1 on agentic turns ([docs/FIDELITY.md](docs/FIDELITY.md)); the state has been cached in bf16 since 2026-09-04 ([R182](bench/results/r168-029-program.md#r182-the-gdn-state-cached-in-bf16-promoted-pool-1020596-tiers-needles-tool-eval-2026-09-04-results2026-09-04-r182-promote-ssm-bf16-scriptsr182-promote-ssm-bf16sh)). The DFlash2 route with the fp32 state scored 388/500 on SWE-Bench Verified (2026-09-04, [R175](bench/results/r168-029-program.md#r175-swe-bench-verified-on-the-served-route-388500--776-paired-with-the-fp8-shape-2026-09-04-results2026-09-02-miniswe-rh-r174-nvfp4-scriptsminiswe-fullsh)).
+
 ### The serving host's launchers
 
 The serving host runs the configurations above through the launchers below, which also carry its experiment and evaluation ports, rollback launchers, tier maintenance and power policy. The served one, `serve-r231-nvidia-daily.sh`, starts the same engine as `scripts/serve.sh` with the disk tier on.
@@ -184,7 +201,7 @@ huggingface-cli download syvai/Qwen3.8-27B-DFlash2-W4A16 --local-dir /srv/qwen50
 #    so either raise SIZE in the script or pass TIER_CAP_GB below the image size.
 sudo bash scripts/setup-native-l2.sh
 
-# 3a. the served image: vLLM v0.29.0rc2 + patches-v0290 + FlashInfer 0.6.16.post3, the nine layers listed
+# 3a. the served image: vLLM v0.29.0rc2 + patches-v0290 + FlashInfer 0.6.16.post3, the nine layers of scripts/build-served-image.sh
 #     under "Engine", tagged as scripts/serve-r231-nvidia-daily.sh expects. Needs Docker BuildKit (buildx,
 #     docker driver); the GPU is not used. About 10 minutes once the base image is local, plus its 8.65 GB pull;
 #     plan for 70 GB of disk (R738, 2026-09-26).
@@ -210,11 +227,11 @@ MODEL_DIR=/srv/qwen5090/models/qwen3.8-27b-redhat-nvfp4 PORT=8020 NAME=vllm-27b 
   - Only a numeric diagnostic catches it.
 - **Task benchmarks cannot rank quantized checkpoints** ([docs/FIDELITY.md](docs/FIDELITY.md)).
   - GSM8K at n=250 resolves about 8 percentage points.
-  - The nine checkpoints differ by less than one point there, and by 4.5 points of top-1 agreement against bf16.
+  - The nine NVFP4 checkpoints compared on 2026-09-01 differ by less than one point there, and by 4.5 points of top-1 agreement against bf16 (`results/2026-09-01-r156-bf16-ladder`).
 - **Prefill-only fidelity rulers cannot see decode kernels or the draft length.**
-  - Greedy continuations with 7 and 9 draft tokens diverge on 19 of 20 chunks, and each draft length compiles its own artifact (the attention block follows the slot count), so lengths cannot be ranked on the decode ruler either (R197).
+  - Greedy continuations with 7 and 9 draft tokens diverge on 19 of 20 chunks (2026-09-04, `results/2026-09-04-r173b-ns-confirm`), and each draft length compiles its own artifact (the attention block follows the slot count), so lengths cannot be ranked on the decode ruler either ([R197](bench/results/r197-spec-length-ladder.md)).
   - Validate a decode-path change with [scripts/decode_fidelity.py](scripts/decode_fidelity.py) against the bf16 decode reference ([docs/FIDELITY.md](docs/FIDELITY.md)).
-- **A FlashInfer bump can change deep-context decode 5x without touching short prompts.**
+- **A FlashInfer bump can change deep-context decode 5x without touching short prompts** (2026-09-03, [R168](bench/results/r168-029-program.md)).
   - Measure decode at 30K context after every library change ([scripts/r168-deep-decode.sh](scripts/r168-deep-decode.sh)).
 - **A request costs more of the pool than its token count.**
   - The linear-attention state is paid per sequence, so the state dtype, not the attention block, sets the per-request floor ([docs/DESIGN.md](docs/DESIGN.md#what-a-request-costs-in-the-pool), [scripts/kv_capacity_probe.py](scripts/kv_capacity_probe.py)).
@@ -222,7 +239,7 @@ MODEL_DIR=/srv/qwen5090/models/qwen3.8-27b-redhat-nvfp4 PORT=8020 NAME=vllm-27b 
   - From 15% of the step at 1 stream to 33% at 16.
   - No NCCL all-reduce runs in decode (NCCL takes the prefill chunks above the 8 MiB custom-all-reduce cap), but about 3 NCCL all-gathers per step remain, 0.2 / 1.0 / 2.0 ms at 1 / 8 / 16 streams.
   - FlashInfer's `pcie_ipc` all-reduce (main only, [PR #4393](https://github.com/flashinfer-ai/flashinfer/pull/4393)) is 24% to 36% faster than the served kernel at the decode row counts on this box, and every kernel hits the PCIe floor at 84 MB; the ceiling for a kernel swap is about 8% of the decode step at 8 and 16 streams ([R184](bench/results/r184-all-reduce-microbench.md), [scripts/ar_bench.py](scripts/ar_bench.py)).
-- **FlashInfer's `pcie_ipc` all-reduce, vendored as an opt-in layer (patch 0138, served since 2026-09-05), buys 4.6% code and 5.4% prose single-stream decode** (2026-09-04, [R185](bench/results/r185-pcie-ipc-all-reduce.md)).
+- **FlashInfer's `pcie_ipc` all-reduce, vendored as an opt-in layer (patch 0138, served since 2026-09-05), raises single-stream decode by 4.6% on code and 5.4% on prose** (2026-09-04, [R185](bench/results/r185-pcie-ipc-all-reduce.md)).
   - 3.1% at 30K context and 2.6% at 16 streams, over the same image with the kernel off.
   - Numerics identical on every paired ruler.
   - The 8-stream tokens/s read is flat because that boot's draft acceptance was lower; the step rate there is +4.9%.
@@ -233,7 +250,7 @@ MODEL_DIR=/srv/qwen5090/models/qwen3.8-27b-redhat-nvfp4 PORT=8020 NAME=vllm-27b 
   - Size the CPU tier for the longest prompt you expect to revisit.
   - Test the tier with a needle retrieved after a restart ([scripts/needle_gate.sh](scripts/needle_gate.sh), [scripts/r172-cputier.sh](scripts/r172-cputier.sh)).
 - **Do not pass `--no-async-scheduling` on vLLM 0.28 or later.**
-  - It costs 21% to 29% single-stream decode ([docs/REJECTED.md](docs/REJECTED.md)).
+  - It costs 21% to 29% single-stream decode (2026-08-28, [docs/HISTORY.md](docs/HISTORY.md), [docs/REJECTED.md](docs/REJECTED.md)).
 - **Single-stream decode with speculative decoding varies between boots and between runs.**
   - Compare within one boot, or normalize by accepted tokens per step ([scripts/decode_ss.py](scripts/decode_ss.py) reports both).
 
