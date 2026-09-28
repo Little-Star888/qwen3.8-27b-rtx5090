@@ -1,0 +1,68 @@
+  shim: patched vllm 0.30.0: openai-chat -> tabby_chat (usage from any frame, CRLF SSE, min_tokens=output_len ON); SpecBench skip_chat_template forced, SpecBench jsonl read without pandas; sample manifest ON
+  preflight: tokenizer CachedQwen2Tokenizer vocab 248077 | template tail 'user\nhi<|im_end|>\n<|im_start|>assistant\n<think>\n'
+  preflight: specbench rows 480
+  preflight: specbench templated prompt tokens max 1540 | >= 1472: 3 | >= 2944: 0
+2026-09-28T23:13:08+00:00 [r794b-27b-c16] lock held; served at entry: qwen3.8-flash-next-exl3-2.50bpw-r0b0tlab; :8029 empty; direct clients stopped: hermes hermes-webui owui-proxy; phases 2; decode kinds code prose concs 1 2 4 8 16 24 32 48 64 runs 3; passes A B; datasets sharegpt; concs 16; SG_N 400 seed 7310; SB_N 480 out 256; boot EXP=1 SEQS=64 KV_BYTES=14860000000 PCIE_IPC=1 BSS=1 CC_EXTRA="max_cudagraph_capture_size":320; want power 600 575 W; offsets now core 0 0 / memory 4500 4500, power 600 575 W; Flash-Next launcher md5 44f55af3151e5c2cd36ce8d8b739c2f0; eval-l2  3.5G 442G 1%
+2026-09-28T23:13:10+00:00 [r794b-27b-c16] Flash-Next daily stopped
+2026-09-28T23:16:11+00:00 [r794b-27b-c16] [A-sharegpt-c16] stopped again after the boot: owui-proxy (launch-daily-v0280.sh restarts owui-proxy)
+2026-09-28T23:16:12+00:00 [r794b-27b-c16] [A-sharegpt-c16] UP after 1 attempt(s): image vllm-qwen38:v0290rc2-nvfp4kv-revival-prs-fi0616-pcieipc-bsshash-mtppcie-mtpcache-eagleshift (sha256:496fe1c83492); launcher md5 b16bc16d2bef304e0d0a5b53b0dbb23e; vllm 0.29.0rc2; engine config sha d8a9a4da68cf (env 39); pool 1391795 (SEQS 16 at this pin: 1391795); SEQS 64; aot hashes 514d7234ad16,b32314c7c232 (loaded 4); block 1472; power 600 575 W (launcher: power 600.00/575.00 W); core offsets 0 0; memory offsets 4500 4500 (clock offsets: memory +4500, core 0 on every GPU; readback mem 4500 4500 | core 0 0); VRAM free 3119/3119
+2026-09-28T23:16:13+00:00 [r794b-27b-c16] [A-sharegpt-c16] warm-up: 16/16 ok, completion tokens [64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64]
+2026-09-28T23:16:15+00:00 [r794b-27b-c16] [A-sharegpt-c16] warm-up counters: requests 16, generation tokens 1024, drafts 320, preemptions 0, running/waiting now 0/0
+2026-09-28T23:17:29+00:00 [r794b-27b-c16] [A-sharegpt-c16] rc 0; 1 shim line; 400 sampled; waves 25.00 (400 requests / c16); server: requests 400/400, generation tokens 84120, prompt tokens 92102, cached 0 GPU + 0 tier, accepted 55598 of 85818 drafted, preemptions 0, running/waiting at end 0/0; engine max Running 16, max Waiting 3, max GPU KV cache usage 20.2 %; Successful requests: 400 ;Failed requests: 0 ;Benchmark duration (s): 55.72 ;Output token throughput (tok/s): 1509.83 ;Median TPOT (ms): 9.25 ; engine ERROR lines 0 tracebacks 0 OOM 0; offsets after core 0 0 memory 4500 4500, power 600 575 W
+2026-09-28T23:20:34+00:00 [r794b-27b-c16] [B-sharegpt-c16] stopped again after the boot: owui-proxy (launch-daily-v0280.sh restarts owui-proxy)
+2026-09-28T23:20:34+00:00 [r794b-27b-c16] [B-sharegpt-c16] UP after 1 attempt(s): image vllm-qwen38:v0290rc2-nvfp4kv-revival-prs-fi0616-pcieipc-bsshash-mtppcie-mtpcache-eagleshift (sha256:496fe1c83492); launcher md5 b16bc16d2bef304e0d0a5b53b0dbb23e; vllm 0.29.0rc2; engine config sha d8a9a4da68cf (env 39); pool 1391795 (SEQS 16 at this pin: 1391795); SEQS 64; aot hashes 514d7234ad16,b32314c7c232 (loaded 4); block 1472; power 600 575 W (launcher: power 600.00/575.00 W); core offsets 0 0; memory offsets 4500 4500 (clock offsets: memory +4500, core 0 on every GPU; readback mem 4500 4500 | core 0 0); VRAM free 2693/2693
+2026-09-28T23:20:35+00:00 [r794b-27b-c16] [B-sharegpt-c16] warm-up: 16/16 ok, completion tokens [64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64]
+2026-09-28T23:20:37+00:00 [r794b-27b-c16] [B-sharegpt-c16] warm-up counters: requests 16, generation tokens 1024, drafts 335, preemptions 0, running/waiting now 0/0
+2026-09-28T23:21:51+00:00 [r794b-27b-c16] [B-sharegpt-c16] rc 0; 1 shim line; 400 sampled; waves 25.00 (400 requests / c16); server: requests 400/400, generation tokens 84120, prompt tokens 92102, cached 0 GPU + 0 tier, accepted 55433 of 86421 drafted, preemptions 0, running/waiting at end 0/0; engine max Running 16, max Waiting 0, max GPU KV cache usage 20.2 %; Successful requests: 400 ;Failed requests: 0 ;Benchmark duration (s): 56.01 ;Output token throughput (tok/s): 1501.98 ;Median TPOT (ms): 9.46 ; engine ERROR lines 0 tracebacks 0 OOM 0; offsets after core 0 0 memory 4500 4500, power 600 575 W
+2026-09-28T23:21:51+00:00 [r794b-27b-c16] all cells done; boot attempts that failed: 0
+  == configuration (first boot; FLAGS list any boot that differs) ==
+    image          vllm-qwen38:v0290rc2-nvfp4kv-revival-prs-fi0616-pcieipc-bsshash-mtppcie-mtpcache-eagleshift
+    image_id       sha256:496fe1c83492
+    launcher_md5   b16bc16d2bef304e0d0a5b53b0dbb23e
+    env_n          39
+    env_sha        d8a9a4da68cf
+    keys_n         -
+    window         -
+    slots          64
+    cache          1391795
+    policy         -
+    gpc_boot       0 0
+    mem_boot       4500 4500
+    power_limit_w  600 575
+    vram_free      3119/3119
+    pwr_line       launcher: power 600.00/575.00 W
+    boots          2
+  
+  == sharegpt, pass A ==
+  | Concurrency | Requests | Output tok/s | Req/s | TTFT p50 / p99 (ms) | TPOT p50 / p99 (ms) | Per-stream tok/s (1000/TPOT p50) | E2E p50 (s) | tau | depth |
+  |---|---|---|---|---|---|---|---|---|---|
+  | 16 | 400 | 1509.8 | 7.18 | 148 / 590 | 9.25 / 25.36 | 108 | 1.30 | 2.95 | 3.01 |
+  
+  == sharegpt, pass B ==
+  | Concurrency | Requests | Output tok/s | Req/s | TTFT p50 / p99 (ms) | TPOT p50 / p99 (ms) | Per-stream tok/s (1000/TPOT p50) | E2E p50 (s) | tau | depth |
+  |---|---|---|---|---|---|---|---|---|---|
+  | 16 | 400 | 1502.0 | 7.14 | 123 / 587 | 9.46 / 23.59 | 106 | 1.29 | 2.93 | 3.01 |
+  
+  == sharegpt: pass A vs B (spread = |A - B| / mean) ==
+  conc  tok/s A        B     mean  spread TPOT50 A      B TTFT50 A      B  tau A     B
+    16   1509.8   1502.0   1505.9   0.52%     9.25   9.46      148    123   2.95  2.93
+  
+  == diagnostics (not for the README) ==
+  tag                     dur s mean in   out tot tok/s step p50   tau tau cli acc/prop cached % hits lines
+  A-sharegpt-c16             56     230   210    3162.9    17.32  2.95    2.93    0.648     0.00    -   400
+  B-sharegpt-c16             56     230   210    3146.5    17.30  2.93    2.91    0.641     0.00    -   400
+  
+  FLAGS: none
+  
+  DECISION: PUBLISHABLE (max A/B spread 0.52 % at sharegpt c16; every cell cached <= 1 %)
+2026-09-28T23:21:51+00:00 [r794b-27b-c16] RUN DECISION (R731 rule over the whole run, as R793): PUBLISHABLE (max A/B spread 0.52 % at sharegpt c16; every cell cached <= 1 %)
+  sharegpt   c16  A 1509.8 B 1502.0 spread 0.52 % (gated yes): PUBLISHABLE
+  CELLS: 1/1 PUBLISHABLE
+2026-09-28T23:21:53+00:00 [sctl] restoring the daily via /srv/qwen5090/launch-flashnext.sh
+2026-09-28T23:22:13+00:00 [sctl] daily: qwen3.8-flash-next-exl3-2.50bpw-r0b0tlab
+2026-09-28T23:22:13+00:00 [r794b-27b-c16] after restore: served qwen3.8-flash-next-exl3-2.50bpw-r0b0tlab (tabbyapi:rebase-dev-r3-loopthink5); core offsets 0 0; memory offsets 4500 4500; power 600 575 W; VRAM free MiB 1181/1759/
+2026-09-28T23:22:29+00:00 [r794b-27b-c16] Hermes repointed at :8022 (qwen3.8-flash-next-exl3-2.50bpw-r0b0tlab) [smoke output removed]
+2026-09-28T23:22:29+00:00 [r794b-27b-c16] restarted: owui-proxy
+2026-09-28T23:22:29+00:00 [r794b-27b-c16] eval-l2 at the end:  3.4G 442G 1%
+2026-09-28T23:22:29+00:00 [r794b-27b-c16] === r794b-27b-c16 DONE ===
+2026-09-28T23:22:29+00:00 [r794b-27b-c16] DECISION: NOT-PUBLISHABLE 1/1 PUBLISHABLE; phase 1 not run; run: PUBLISHABLE (max A/B spread 0.52 % at sharegpt c16; every cell cached <= 1 %)

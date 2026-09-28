@@ -47,7 +47,7 @@ The speculative route changed from the DFlash2 drafter at 7 draft tokens to the 
 - The MTP head accepts 0.65 to 0.68 of its draft tokens on code and 0.39 to 0.49 on prose, against 0.38 to 0.42 and 0.17 to 0.24 for DFlash2.
 - First boot of each route on the serving port: code 1 stream 278.9 → 209.1 t/s (−25.0 %), prose 1 stream −12.0 %, code 8 streams −5.5 %, prose 8 streams +12.7 %, code 16 streams +11.5 %, prose 16 streams +26.2 %.
 - The attention block drops from 1,552 to 1,472 tokens, the pool grows from 1,052,277 to 1,309,368 at the same 13.98 GB pin, and the disk tier is wiped once by the block-size stamp. Needles at 131K and 220K 4 of 4 cold and 4 of 4 from the tier; tool-eval 91.2 ± 0.5 against 90.8 ± 1.0.
-- On a port-8029 boot at 64 sequences the route admits 64 concurrent requests with no preemptions, where DFlash2 at 7 stops at 36 ([R206c](../bench/results/r206c-mtp-c32-c64.md)).
+- On a port-8029 boot at 64 sequences the route admits 64 concurrent requests with no preemptions, where DFlash2 at 7 stops at 36 ([R206c](../bench/results/r206c-mtp-c32-c64.md)). That boot's `decode_ss` curve was the README's seq-64 figure until 2026-09-28 (`results/2026-09-06-r206c-mtp-c32c64-v2`): 4,497 t/s of code at 64 streams, 70 per stream, and 3,608 of prose; the KV-cache gauge read 86.0 % at 64 running, about 2.9K tokens of context per request beyond the reserved block. [R794](../bench/results/r794-27b-seq64.md) re-measured the figure on the NVIDIA checkpoint at the 14.86 GB pin.
 
 Launcher [`../scripts/serve-r207-mtp-daily.sh`](../scripts/serve-r207-mtp-daily.sh), the rollback since 2026-09-09.
 

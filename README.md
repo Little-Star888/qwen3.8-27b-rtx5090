@@ -164,19 +164,23 @@ The first three columns were measured on 2026-08-31 on the [gittensor](https://h
 
 DFlash2 accepts few draft tokens per step, so its decode is bound by weight bandwidth, which the second card doubles. MTP accepts more per step and amortizes the weight reads, so on MTP the second card adds KV space more than speed. Tool-eval does not separate the three shapes; the bf16 rulers separate them by KV dtype ([docs/FIDELITY.md](docs/FIDELITY.md)).
 
+### The served launcher at 64 sequences
+
+The served launcher with the sequence limit at 64 and graph capture capped at 320 decodes 4,807 t/s of code and 3,961 of prose at 64 streams, and `vllm bench serve` reads 2,010 (ShareGPT V3) and 2,571 (Spec-Bench) output tok/s there, with no request preempted ([R794](bench/results/r794-27b-seq64.md), 2026-09-28).
+
+![Decode alone (solid) and vllm bench serve on ShareGPT V3 and Spec-Bench (dashed) on the 64-sequence boot, sum over streams and per stream](docs/img/decode-scaling-64.svg)
+
+| | value | configuration | source |
+|---|---|---|---|
+| concurrent requests at 64 sequences | 64 running, 0 preemptions over the decode sweep and 30 benchmark cells; KV-cache gauge peak 81.0 % | the served launcher at 64 sequences, 14.86 GB pin | 2026-09-28, [R794](bench/results/r794-27b-seq64.md) |
+
 ### Measured on earlier configurations of the served route
 
 These rows were measured on the vLLM 0.29 route before the NVIDIA checkpoint and the 14.86 GB pin, and have not been repeated on the served configuration. Each names its configuration.
 
-The steady-state decode probe on a port-8029 boot with the sequence limit raised to 64 ([R206c](bench/results/r206c-mtp-c32-c64.md), 2026-09-06, results `2026-09-06-r206c-mtp-c32c64-v2`; MTP at 3 draft tokens, RedHatAI checkpoint, 13.98 GB pin):
-
-![Decode rate against concurrency on the seq-64 boot, aggregate and per stream](docs/img/decode-scaling-64.svg)
-
-The aggregate reaches 4,497 t/s of code at 64 streams, 70 per stream. Above 40 sequences that boot needs `max_cudagraph_capture_size` capped at 320, and at 64 sequences each request has about 2.9K tokens of context, so longer requests queue ([R206c](bench/results/r206c-mtp-c32-c64.md)).
-
 | | value | configuration | source |
 |---|---|---|---|
-| concurrent requests the pool admits | 74 by the state-copy pricing, 64 measured with no preemptions; 17,584 tokens-equivalent per running request | MTP at 3 draft tokens, RedHatAI, 13.98 GB pin, 64 sequences | 2026-09-06, [R206c](bench/results/r206c-mtp-c32-c64.md); 2026-09-05, [R200](bench/results/r200-c32-c64-pool-cost.md) |
+| what a running request costs of the pool | 17,584 tokens-equivalent, 74 concurrent requests by that pricing | MTP at 3 draft tokens, RedHatAI, 13.98 GB pin | 2026-09-05, [R200](bench/results/r200-c32-c64-pool-cost.md) |
 | aggregate prefill under concurrency | 9.0K t/s at 16, 32 and 64 streams, 2K and 8K prompts | DFlash2 at 7 draft tokens, RedHatAI, 13.98 GB pin | 2026-09-05, [R200](bench/results/r200-c32-c64-pool-cost.md) |
 | GSM8K cot zero-shot ([lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)), n=120, temperature 0 | 0.85 ± 0.03 | DFlash2, RedHatAI, fp32 linear-attention state | 2026-09-04, [R177](bench/results/r168-029-program.md#r177-the-served-route-at-16-sequences-on-the-r142-matrix-instrument-2026-09-04-results2026-09-04-r177-matrix-scriptsr177-matrixsh) |
 | fidelity vs the bf16 model, agentic turns, 57,972 positions | top-1 95.63 %, perplexity +2.67 % | MTP at 3 draft tokens, RedHatAI | 2026-09-06, [R206](bench/results/r206-mtp-vs-dflash-paired.md) |

@@ -1,0 +1,2 @@
+dataset	conc	out_tps_A	out_tps_B	spread_pct	spread_gated	verdict	reasons
+sharegpt	16	1509.83	1501.98	0.52	yes	PUBLISHABLE	
