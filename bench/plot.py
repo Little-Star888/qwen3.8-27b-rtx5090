@@ -27,8 +27,21 @@ RESULTS = ROOT / "bench" / "results"
 OUT = ROOT / "docs" / "img"
 R675 = RESULTS / "2026-09-23-r675-27b-curves"
 R206C = RESULTS / "2026-09-06-r206c-mtp-c32c64-v2"
+# R793 (2026-09-28): `vllm bench serve` v0.30.0 on ShareGPT V3 and Spec-Bench against the same served launcher, a fresh
+# boot per cell, passes A and B; drawn dashed over R675's decode curve.
+R793 = RESULTS / "2026-09-28-r793-27b-std-bench-1608"
+# R793's ShareGPT pair at 6 streams differed by 3.17 % (833.9 / 807.9 tok/s), above the round's 3 % rule. The rule for its
+# re-run, fixed before the re-run was read: take the re-run's A/B mean if its spread is <= 3 % and the mean is within 3 %
+# of R793 pass A. R793b: 829.8 / 835.7 tok/s, spread 0.71 %, mean 832.7 (0.14 % below pass A), so that cell comes from here.
+R793B = RESULTS / "2026-09-28-r793b-27b-c6-1905"
+STD_OVERRIDE = {("sharegpt", 6): (R793B, "r793b-27b-c6")}
+STD_UNIT = "r793-27b-std-bench"
+STD_CONC = (1, 2, 4, 6, 8, 12, 16)
+STD_PASSES = ("A", "B")
 
 CODE, PROSE, PREFILL = "#0969da", "#cf222e", "#8250df"
+SHAREGPT, SPECBENCH = "#1a7f37", "#9a6700"
+STD_DATASETS = (("sharegpt", "ShareGPT V3", SHAREGPT), ("specbench", "Spec-Bench", SPECBENCH))
 plt.rcParams.update({
     "figure.dpi": 110,
     "font.size": 10,
@@ -80,6 +93,135 @@ def decode_ss_dir(path, pattern):
     return out
 
 
+def std_bench():
+    """R793's cells per (dataset, conc), each the mean of passes A and B, ShareGPT at 6 streams from R793b
+    (STD_OVERRIDE). Output tok/s is `vllm bench serve`'s output_throughput: all completion tokens over the run's wall
+    time, prefill, time to first token and request turnover included. Per stream is 1 / median over requests of
+    TPOT = (latency - TTFT) / (output tokens - 1), which includes the steps a request waits while other requests'
+    prefill chunks run. The Flash-Next repository's figure uses the same two definitions. A missing cell file, a file
+    from another round or cell, or a cell with a failed request is an error, never a gap."""
+    cells, src = {}, {}
+    for key, _, _ in STD_DATASETS:
+        for c in STD_CONC:
+            base, unit = STD_OVERRIDE.get((key, c), (R793, STD_UNIT))
+            vals = []
+            for ps in STD_PASSES:
+                f = base / f"{ps}-{key}-c{c}.json"
+                if not f.exists():
+                    raise FileNotFoundError(f"{f} is missing; every standard-benchmark cell needs both passes")
+                d = json.load(open(f))
+                want = dict(unit=unit, dataset=key, conc=str(c), tag=f"{ps}-{key}-c{c}")
+                got = {k: str(d.get(k)) for k in want}
+                if got != want:
+                    raise ValueError(f"{f}: metadata {got}, want {want}")
+                if d["failed"] != 0 or d["completed"] != d["num_prompts"]:
+                    raise ValueError(f"{f}: {d['completed']} of {d['num_prompts']} completed, {d['failed']} failed")
+                tpot = [(lat - ttft) / (n - 1) for lat, ttft, n in zip(d["latencies"], d["ttfts"], d["output_lens"]) if n > 1]
+                vals.append((d["output_throughput"], 1.0 / st.median(tpot)))
+            cells[(key, c)] = (st.mean(o for o, _ in vals), st.mean(p for _, p in vals))
+            src[(key, c)] = base.name
+    return cells, src
+
+
+def place_labels(ax, series, first):
+    """Value labels that print on no marker, line or other label. `series` is a list of (xs, ys, color, labelled) in
+    drawing order: the solid code line is labelled at every point, the dashed lines from `first` streams, the prose
+    line not at all (as in the Flash-Next figure). Each label tries six spots in order (above centred, above left,
+    above right, then the same below) and takes the first whose box is clear of every series and of the labels already
+    placed, inside the y axis on the left (the open right edge may take half a label). With none clear the label is
+    left out; the value stays in the write-up's tables. Boxes are in data units: a label is ~5 % of the y range tall
+    and ~0.3 streams wide per digit at this figure size."""
+    lo, hi = ax.get_ylim()
+    span = hi - lo
+    xlo, xhi = ax.get_xlim()
+
+    def interp(xs, ys, x):
+        if x <= xs[0]:
+            return ys[0]
+        if x >= xs[-1]:
+            return ys[-1]
+        for (x0, y0), (x1, y1) in zip(zip(xs, ys), zip(xs[1:], ys[1:])):
+            if x0 <= x <= x1:
+                return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+
+    spots = [(v, h) for v in ("above", "below") for h in ("center", "left", "right")]
+    placed = []   # (x0, x1, y0, y1) boxes in data units
+    for i, (xs, ys, color, labelled) in enumerate(series):
+        for x, y in zip(xs, ys):
+            if not labelled or (i and x < first):
+                continue
+            text = f"{y:.0f}"
+            w = 0.3 * len(text)
+            for v, h in spots:
+                x0 = {"center": x - w / 2, "left": x - w - 0.1, "right": x + 0.1}[h]
+                x1 = x0 + w
+                y0, y1 = (y + 0.012 * span, y + 0.062 * span) if v == "above" else (y - 0.075 * span, y - 0.025 * span)
+                grid = [x0 + k * (x1 - x0) / 6 for k in range(7)]
+                hit = any(y0 - 0.01 * span <= interp(xs2, ys2, gx) <= y1 + 0.01 * span
+                          for j, (xs2, ys2, _, _) in enumerate(series) for gx in grid
+                          if j != i or abs(gx - x) > 0.15)
+                hit = hit or x0 < xlo or x1 > xhi + 0.6 or any(px0 < x1 and x0 < px1 and py0 < y1 and y0 < py1 for px0, px1, py0, py1 in placed)
+                if not hit:
+                    placed.append((x0, x1, y0, y1))
+                    dx = {"center": 0, "left": -3, "right": 3}[h]
+                    ax.annotate(text, (x, y), textcoords="offset points", xytext=(dx, 3 if v == "above" else -11),
+                                ha={"center": "center", "left": "right", "right": "left"}[h], fontsize=8.5, color=color)
+                    break
+
+
+def std_figure(rates, std, name, caption):
+    """decode_figure's two panels with R793 dashed over R675 solid."""
+    cells, src = std
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(10.4, 4.9))
+    sconc = sorted({c for (_, c) in cells})
+    series = ([], [])
+    for kind, color in (("code", CODE), ("prose", PROSE)):
+        conc = sorted(rates[kind])
+        for a, idx, i in ((ax, 0, 0), (ax2, 1, 1)):
+            ys = [rates[kind][c][idx] for c in conc]
+            a.plot(conc, ys, marker="o" if idx == 0 else "s", markersize=6 if idx == 0 else 4, color=color,
+                   linewidth=2, label=f"{kind}, decode alone (R675)")
+            series[i].append((conc, ys, color, kind == "code"))
+    for key, dname, color in STD_DATASETS:
+        for a, idx, i in ((ax, 0, 0), (ax2, 1, 1)):
+            ys = [cells[(key, c)][idx] for c in sconc]
+            a.plot(sconc, ys, marker="s", markersize=4, color=color, linewidth=2, linestyle="--",
+                   label=f"{dname}, vllm bench serve (R793)")
+            series[i].append((sconc, ys, color, True))
+    ys_agg = [y for _, ys, _, _ in series[0] for y in ys]
+    ys_per = [y for _, ys, _, _ in series[1] for y in ys]
+    ax.set_ylim(0, max(ys_agg) * 1.2)
+    ax2.set_ylim(0, max(ys_per) * 1.5)   # room for the four-entry legend above the lines
+    ax.set_title("All streams")
+    ax.set_ylabel("tokens per second, sum of streams\n(dashed: output tok/s, wall clock)")
+    ax2.set_title("One stream")
+    ax2.set_ylabel("tokens per second, per stream\n(dashed: 1000 / TPOT p50)")
+    for a in (ax, ax2):
+        a.set_xticks(sconc)
+        a.set_xlabel("concurrent streams")
+        a.grid(axis="y", color="#eaeef2")
+        a.set_axisbelow(True)
+    place_labels(ax, series[0], first=2)
+    place_labels(ax2, series[1], first=2)
+    ax.legend(frameon=False, fontsize=8, loc="upper left")
+    ax2.legend(frameon=False, fontsize=8, loc="upper right")
+    fig.suptitle("Decode alone against the standard benchmark, served configuration", fontsize=11, fontweight="bold")
+    fig.text(0.5, -0.02,
+             "Solid: decode_ss.py, all streams decoding, 1,024 forced tokens, one code and one prose prompt, 2026-09-23 "
+             "(R675; memory clock offset not recorded).\n"
+             "Dashed: vllm bench serve, closed loop, ShareGPT reference-reply lengths / 256 tokens, mean of passes A and B, "
+             "memory clock offset +4500, 2026-09-28 (R793; ShareGPT at 6 streams from the R793b re-run).",
+             ha="center", va="top", fontsize=7.5, color="#57606a")
+    print("decode scaling (R675): aggregate", {k: [round(rates[k][c][0]) for c in sorted(rates[k])] for k in rates})
+    print("decode scaling (R675): per stream", {k: [round(rates[k][c][1]) for c in sorted(rates[k])] for k in rates})
+    print(f"standard benchmark (passes A/B mean) at {sconc}")
+    for key, dname, _ in STD_DATASETS:
+        print(f"  {dname:11}  output tok/s {[round(cells[(key, c)][0], 1) for c in sconc]}"
+              f"   per stream {[round(cells[(key, c)][1]) for c in sconc]}")
+    print("  sources:", sorted({(k, c, v) for (k, c), v in src.items() if v != R793.name}), "; every other cell", R793.name)
+    save(fig, name, caption)
+
+
 def decode_figure(rates, name, caption, label):
     """Two panels, not twin axes: the aggregate and per-stream lines cross between 8 and 12 streams
     and their labels would print on top of one another. `label` names the measurement for the
@@ -114,9 +256,9 @@ def decode_figure(rates, name, caption, label):
 
 def figure_decode_scaling():
     rates = {k: decode_ss(R675 / f"decode-{k}.jsonl") for k in ("code", "prose")}
-    decode_figure(rates, "decode-scaling-16.svg",
-                  "Decode rate against concurrency on the served 16-sequence boot, aggregate and per stream",
-                  "decode scaling (R675)")
+    std_figure(rates, std_bench(), "decode-scaling-16.svg",
+               "Decode rate against concurrency on the served 16-sequence boot: decode alone (R675, solid) and "
+               "vllm bench serve on ShareGPT V3 and Spec-Bench (R793, dashed), sum over streams and per stream")
 
 
 def figure_decode_scaling_64():

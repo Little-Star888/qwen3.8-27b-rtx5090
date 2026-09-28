@@ -1,0 +1,40 @@
+== configuration (first boot; FLAGS list any boot that differs) ==
+  image          vllm-qwen38:v0290rc2-nvfp4kv-revival-prs-fi0616-pcieipc-bsshash-mtppcie-mtpcache-eagleshift
+  image_id       sha256:496fe1c83492
+  launcher_md5   b16bc16d2bef304e0d0a5b53b0dbb23e
+  env_n          39
+  env_sha        687398674e2b
+  keys_n         -
+  window         -
+  slots          16
+  cache          1391795
+  policy         -
+  gpc_boot       0 0
+  mem_boot       4500 4500
+  power_limit_w  600 575
+  vram_free      3421/3421
+  pwr_line       launcher: power 400.00/400.00 W; unit: POWER=stock
+  boots          2
+
+== sharegpt, pass A ==
+| Concurrency | Requests | Output tok/s | Req/s | TTFT p50 / p99 (ms) | TPOT p50 / p99 (ms) | Per-stream tok/s (1000/TPOT p50) | E2E p50 (s) | tau | depth |
+|---|---|---|---|---|---|---|---|---|---|
+| 6 | 400 | 829.8 | 3.95 | 119 / 367 | 6.16 / 15.40 | 162 | 0.95 | 2.93 | 3.01 |
+
+== sharegpt, pass B ==
+| Concurrency | Requests | Output tok/s | Req/s | TTFT p50 / p99 (ms) | TPOT p50 / p99 (ms) | Per-stream tok/s (1000/TPOT p50) | E2E p50 (s) | tau | depth |
+|---|---|---|---|---|---|---|---|---|---|
+| 6 | 400 | 835.7 | 3.97 | 157 / 363 | 6.08 / 14.34 | 164 | 0.91 | 2.92 | 3.00 |
+
+== sharegpt: pass A vs B (spread = |A - B| / mean) ==
+conc  tok/s A        B     mean  spread TPOT50 A      B TTFT50 A      B  tau A     B
+   6    829.8    835.7    832.7   0.71%     6.16   6.08      119    157   2.93  2.92
+
+== diagnostics (not for the README) ==
+tag                     dur s mean in   out tot tok/s step p50   tau tau cli acc/prop cached % hits lines
+A-sharegpt-c6             101     230   210    1738.3    14.22  2.93    2.91    0.640     0.00    -   400
+B-sharegpt-c6             101     230   210    1750.7    14.05  2.92    2.90    0.637     0.00    -   400
+
+FLAGS: none
+
+DECISION: PUBLISHABLE (max A/B spread 0.71 % at sharegpt c6; every cell cached <= 1 %)
